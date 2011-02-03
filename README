@@ -1,0 +1,4 @@
+A simple clone of the svn repo...
+Created by KaroDidi and updated (hopefully) automatically be cron
+
+Because I don't like working with gitsvnsomethingsomehowconvertit... just use a plain git submodule
