@@ -6,9 +6,9 @@ What is it?
 
 There are 3 repos:
 
-1) https://github.com/KaroDidi/propel
-2) https://github.com/KaroDidi/propel1.6
-3) and https://github.com/KaroDidi/phing
+1. https://github.com/KaroDidi/propel
+2. https://github.com/KaroDidi/propel1.6
+3. and https://github.com/KaroDidi/phing
 
 They are all copies/clones of the official propel and phing SVN repositories.
 
