@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/OMBuilder.php';
+require_once 'builder/om/OMBuilder.php';
 
 /**
  * Base class for Peer-building classes.
@@ -58,15 +58,6 @@ abstract class ObjectBuilder extends OMBuilder
 			// if they're not using the DateTime class than we will generate "compatibility" accessor method
 			if ($col->getType() === PropelTypes::DATE || $col->getType() === PropelTypes::TIME || $col->getType() === PropelTypes::TIMESTAMP) {
 				$this->addTemporalAccessor($script, $col);
-			} else if ($col->getType() === PropelTypes::OBJECT) {
-				$this->addObjectAccessor($script, $col);
-			} else if ($col->getType() === PropelTypes::PHP_ARRAY) {
-				$this->addArrayAccessor($script, $col);
-				if ($col->isNamePlural()) {
-					$this->addHasArrayElement($script, $col);
-				}
-			} else if ($col->isEnumType()) {
-				$this->addEnumAccessor($script, $col);
 			} else {
 				$this->addDefaultAccessor($script, $col);
 			}
@@ -86,20 +77,11 @@ abstract class ObjectBuilder extends OMBuilder
 	protected function addColumnMutatorMethods(&$script)
 	{
 		foreach ($this->getTable()->getColumns() as $col) {
+
 			if ($col->isLobType()) {
 				$this->addLobMutator($script, $col);
 			} elseif ($col->getType() === PropelTypes::DATE || $col->getType() === PropelTypes::TIME || $col->getType() === PropelTypes::TIMESTAMP) {
 				$this->addTemporalMutator($script, $col);
-			} else if ($col->getType() === PropelTypes::OBJECT) {
-				$this->addObjectMutator($script, $col);
-			} else if ($col->getType() === PropelTypes::PHP_ARRAY) {
-				$this->addArrayMutator($script, $col);
-				if ($col->isNamePlural()) {
-					$this->addAddArrayElement($script, $col);
-					$this->addRemoveArrayElement($script, $col);
-				}
-			} else if ($col->isEnumType()) {
-				$this->addEnumMutator($script, $col);
 			} else {
 				$this->addDefaultMutator($script, $col);
 			}

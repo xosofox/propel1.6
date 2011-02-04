@@ -12,11 +12,12 @@
  * Adds a primary key to models defined without one
  *
  * @author     François Zaninotto
- * @version    $Revision: 2153 $
+ * @version    $Revision: 1745 $
  * @package    propel.generator.behavior
  */
 class AutoAddPkBehavior extends Behavior
 {
+	protected $isEarly = true;
 	
 	// default parameters value
 	protected $parameters = array(

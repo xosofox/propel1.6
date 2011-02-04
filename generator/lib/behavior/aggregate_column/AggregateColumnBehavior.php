@@ -14,7 +14,7 @@ require_once 'AggregateColumnRelationBehavior.php';
  * Keeps an aggregate column updated with related table
  *
  * @author     François Zaninotto
- * @version    $Revision: 2090 $
+ * @version    $Revision: 1935 $
  * @package    propel.generator.behavior.aggregate_column
  */
 class AggregateColumnBehavior extends Behavior
@@ -25,7 +25,6 @@ class AggregateColumnBehavior extends Behavior
 		'name'           => null,
 		'expression'     => null,
 		'foreign_table'  => null,
-		'foreign_schema' => null,
 	);
 	
 	/**
@@ -79,13 +78,9 @@ class AggregateColumnBehavior extends Behavior
 			$conditions[] = $columnReference['local']->getFullyQualifiedName() . ' = :p' . ($index + 1);
 			$bindings[$index + 1]   = $columnReference['foreign']->getPhpName();
 		}
-		$tableName = $database->getTablePrefix() . $this->getParameter('foreign_table');
-		if ($database->getPlatform()->supportsSchemas() && $this->getParameter('foreign_schema')) {
-			$tableName = $this->getParameter('foreign_schema').'.'.$tableName;
-		}
 		$sql = sprintf('SELECT %s FROM %s WHERE %s',
 			$this->getParameter('expression'),
-			$database->getPlatform()->quoteIdentifier($tableName),
+			$database->getPlatform()->quoteIdentifier($database->getTablePrefix() . $this->getParameter('foreign_table')),
 			implode(' AND ', $conditions)
 		);
 		
@@ -106,11 +101,7 @@ class AggregateColumnBehavior extends Behavior
 	protected function getForeignTable()
 	{
 		$database = $this->getTable()->getDatabase();
-		$tableName = $database->getTablePrefix() . $this->getParameter('foreign_table');
-		if ($database->getPlatform()->supportsSchemas() && $this->getParameter('foreign_schema')) {
-			$tableName = $this->getParameter('foreign_schema'). '.' . $tableName;
-		}
-		return $database->getTable($tableName);
+		return $database->getTable($database->getTablePrefix() . $this->getParameter('foreign_table'));
 	}
 
 	protected function getForeignKey()

@@ -396,8 +396,7 @@ abstract class AbstractPropelDataModelTask extends Task
 	protected function loadDataModels()
 	{
 		$ads = array();
-		$totalNbTables = 0;
-		$this->log('Loading XML schema files...');
+
 		// Get all matched files from schemaFilesets
 		foreach ($this->schemaFilesets as $fs) {
 			$ds = $fs->getDirectoryScanner($this->project);
@@ -406,12 +405,12 @@ abstract class AbstractPropelDataModelTask extends Task
 			$dataModelFiles = $ds->getIncludedFiles();
 			sort($dataModelFiles);
 
-			$defaultPlatform = $this->getGeneratorConfig()->getConfiguredPlatform();
+			$platform = $this->getGeneratorConfig()->getConfiguredPlatform();
 
 			// Make a transaction for each file
 			foreach ($dataModelFiles as $dmFilename) {
 
-				$this->log("Processing: ".$dmFilename, Project::MSG_VERBOSE);
+				$this->log("Processing: ".$dmFilename);
 				$xmlFile = new PhingFile($srcDir, $dmFilename);
 
 				$dom = new DomDocument('1.0', 'UTF-8');
@@ -422,7 +421,7 @@ abstract class AbstractPropelDataModelTask extends Task
 					
 				// normalize (or transform) the XML document using XSLT
 				if ($this->getGeneratorConfig()->getBuildProperty('schemaTransform') && $this->xslFile) {
-					$this->log("Transforming " . $dmFilename . " using stylesheet " . $this->xslFile->getPath(), Project::MSG_VERBOSE);
+					$this->log("Transforming " . $xmlFile->getPath() . " using stylesheet " . $this->xslFile->getPath(), Project::MSG_VERBOSE);
 					if (!class_exists('XSLTProcessor')) {
 						$this->log("Could not perform XLST transformation. Make sure PHP has been compiled/configured to support XSLT.", Project::MSG_ERR);
 					} else {
@@ -437,23 +436,18 @@ abstract class AbstractPropelDataModelTask extends Task
 
 				// validate the XML document using XSD schema
 				if ($this->validate && $this->xsdFile) {
-					$this->log("  Validating XML using schema " . $this->xsdFile->getPath(), Project::MSG_VERBOSE);
+					$this->log("Validating XML doc (".$xmlFile->getPath().") using schema file " . $this->xsdFile->getPath(), Project::MSG_VERBOSE);
 					if (!$dom->schemaValidate($this->xsdFile->getAbsolutePath())) {
 						throw new EngineException("XML schema file (".$xmlFile->getPath().") does not validate. See warnings above for reasons validation failed (make sure error_reporting is set to show E_WARNING if you don't see any).", $this->getLocation());
 					}
 				}
 				
-				$xmlParser = new XmlToAppData($defaultPlatform, $this->getTargetPackage(), $this->dbEncoding);
-				$xmlParser->setGeneratorConfig($this->getGeneratorConfig());
+				$xmlParser = new XmlToAppData($platform, $this->getTargetPackage(), $this->dbEncoding);
 				$ad = $xmlParser->parseString($dom->saveXML(), $xmlFile->getAbsolutePath());
-				$nbTables = $ad->getDatabase(null, false)->countTables();
-				$totalNbTables += $nbTables;
-				$this->log(sprintf('  %d tables processed successfully', $nbTables), Project::MSG_VERBOSE);
-				
+		
 				$ad->setName($dmFilename);
 				$ads[] = $ad;
 			}
-			$this->log(sprintf('%d tables found in %d schema files.', $totalNbTables, count($dataModelFiles)));
 		}
 
 		if (empty($ads)) {
@@ -497,7 +491,7 @@ abstract class AbstractPropelDataModelTask extends Task
 		$nbIncludedSchemas = 0;
 		while ($externalSchema = $externalSchemaNodes->item(0)) {
 			$include = $externalSchema->getAttribute("filename");
-			$this->log('Processing external schema: ' . $include, Project::MSG_VERBOSE);
+			$this->log("Processing external schema: ".$include);
 			$externalSchema->parentNode->removeChild($externalSchema);
 			if ($fs->prefixLength($include) != 0) {
 				$externalSchemaFile = new PhingFile($include);
@@ -526,9 +520,36 @@ abstract class AbstractPropelDataModelTask extends Task
 	 */
 	protected function joinDataModels($ads)
 	{
-		$mainAppData = array_shift($ads);
-		$mainAppData->joinAppDatas($ads);
-		
+		$mainAppData = null;
+		foreach ($ads as $appData) {
+			if (null === $mainAppData) {
+				$mainAppData = $appData;
+				$appData->setName('JoinedDataModel');
+				continue;
+			}
+			// merge subsequent schemas to the first one
+			foreach ($appData->getDatabases(false) as $addDb) {
+				$addDbName = $addDb->getName();
+				if ($mainAppData->hasDatabase($addDbName)) {
+					$db = $mainAppData->getDatabase($addDbName, false);
+					// join tables
+					foreach ($addDb->getTables() as $addTable) {
+						if ($db->getTable($addTable->getName())) {
+							throw new BuildException('Duplicate table found: ' . $addDbName . '.');
+						}
+						$db->addTable($addTable);
+					}
+					// join database behaviors
+					foreach ($addDb->getBehaviors() as $addBehavior) {
+						if (!$db->hasBehavior($addBehavior->getName())) {
+							$db->addBehavior($addBehavior);
+						}
+					}
+				} else {
+					$mainAppData->addDatabase($addDb);
+				}
+			}
+		}
 		return $mainAppData;
 	}
 

@@ -8,11 +8,11 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/ScopedElement.php';
-require_once dirname(__FILE__) . '/IDMethod.php';
-require_once dirname(__FILE__) . '/NameGenerator.php';
-require_once dirname(__FILE__) . '/Table.php';
-require_once dirname(__FILE__) . '/Behavior.php';
+require_once 'model/XMLElement.php';
+require_once 'model/IDMethod.php';
+require_once 'model/NameGenerator.php';
+require_once 'model/Table.php';
+require_once 'model/Behavior.php';
 
 /**
  * A class for holding application data structures.
@@ -23,16 +23,24 @@ require_once dirname(__FILE__) . '/Behavior.php';
  * @author     Martin Poeschl<mpoeschl@marmot.at> (Torque)
  * @author     Daniel Rall<dlr@collab.net> (Torque)
  * @author     Byron Foster <byron_foster@yahoo.com> (Torque)
- * @version    $Revision: 2173 $
+ * @version    $Revision: 1848 $
  * @package    propel.generator.model
  */
-class Database extends ScopedElement
+class Database extends XMLElement
 {
 
 	private $platform;
 	private $tableList = array();
 	private $curColumn;
 	private $name;
+	private $pkg;
+
+	/**
+	 * Namespace for the generated OM.
+	 *
+	 * @var       string
+	 */
+	protected $namespace;
 
 	private $baseClass;
 	private $basePeer;
@@ -41,18 +49,9 @@ class Database extends ScopedElement
 	private $defaultTranslateMethod;
 	private $dbParent;
 	private $tablesByName = array();
-	private $tablesByLowercaseName = array();
 	private $tablesByPhpName = array();
 	private $heavyIndexing;
 	protected $tablePrefix = '';
-
-	/**
-	 * The default string format for objects based on this database
-	 * (e.g. 'XML', 'YAML', 'CSV', 'JSON')
-	 *
-	 * @var       string
-	 */
-	protected $defaultStringFormat;
 
 	private $domainMap = array();
 
@@ -79,8 +78,14 @@ class Database extends ScopedElement
 	 */
 	protected function setupObject()
 	{
-		parent::setupObject();
 		$this->name = $this->getAttribute("name");
+		$namespace = $this->getAttribute("namespace", '');
+		$package = $this->getAttribute("package");
+		if ($namespace && !$package && $this->getBuildProperty('namespaceAutoPackage')) {
+			$package = str_replace('\\', '.', $namespace);
+		}
+		$this->namespace = $namespace;
+		$this->pkg = $package;
 		$this->baseClass = $this->getAttribute("baseClass");
 		$this->basePeer = $this->getAttribute("basePeer");
 		$this->defaultIdMethod = $this->getAttribute("defaultIdMethod", IDMethod::NATIVE);
@@ -88,13 +93,12 @@ class Database extends ScopedElement
 		$this->defaultTranslateMethod = $this->getAttribute("defaultTranslateMethod", Validator::TRANSLATE_NONE);
 		$this->heavyIndexing = $this->booleanValue($this->getAttribute("heavyIndexing"));
 		$this->tablePrefix = $this->getAttribute('tablePrefix', $this->getBuildProperty('tablePrefix'));
-		$this->defaultStringFormat = $this->getAttribute('defaultStringFormat', 'YAML');
 	}
 
 	/**
-	 * Returns the PropelPlatformInterface implementation for this database.
+	 * Returns the Platform implementation for this database.
 	 *
-	 * @return     PropelPlatformInterface a Platform implementation
+	 * @return     Platform a Platform implementation
 	 */
 	public function getPlatform()
 	{
@@ -102,9 +106,9 @@ class Database extends ScopedElement
 	}
 
 	/**
-	 * Sets the PropelPlatformInterface implementation for this database.
+	 * Sets the Platform implementation for this database.
 	 *
-	 * @param      PropelPlatformInterface $platform A Platform implementation
+	 * @param      Platform $platform A Platform implementation
 	 */
 	public function setPlatform($platform)
 	{
@@ -125,6 +129,42 @@ class Database extends ScopedElement
 	public function setName($name)
 	{
 		$this->name = $name;
+	}
+
+	/**
+	 * Get the value of package.
+	 * @return     value of package.
+	 */
+	public function getPackage()
+	{
+		return $this->pkg;
+	}
+
+	/**
+	 * Set the value of package.
+	 * @param      v  Value to assign to package.
+	 */
+	public function setPackage($v)
+	{
+		$this->pkg = $v;
+	}
+
+	/**
+	 * Get the value of the namespace.
+	 * @return     value of namespace.
+	 */
+	public function getNamespace()
+	{
+		return $this->namespace;
+	}
+
+	/**
+	 * Set the value of the namespace.
+	 * @param      v  Value to assign to namespace.
+	 */
+	public function setNamespace($v)
+	{
+		$this->namespace = $v;
 	}
 
 	/**
@@ -211,26 +251,6 @@ class Database extends ScopedElement
 	}
 
 	/**
-	 * Set the default string format for ActiveRecord objects in this Db.
-	 *
-	 * @param      string $defaultStringFormat Any of 'XML', 'YAML', 'JSON', or 'CSV'
-	 */
-	public function setDefaultStringFormat($defaultStringFormat)
-	{
-		$this->defaultStringFormat = $defaultStringFormat;
-	}
-
-	/**
-	 * Get the default string format for ActiveRecord objects in this Db.
-	 *
-	 * @return     string The default string format
-	 */
-	public function getDefaultStringFormat()
-	{
-		return $this->defaultStringFormat;
-	}
-
-	/**
 	 * Set the value of defaultTranslateMethod.
 	 * @param      string $v The default translate method to use.
 	 */
@@ -238,7 +258,7 @@ class Database extends ScopedElement
 	{
 		$this->defaultTranslateMethod = $v;
 	}
-	
+
 	/**
 	 * Get the value of heavyIndexing.
 	 *
@@ -272,69 +292,32 @@ class Database extends ScopedElement
 	}
 
 	/**
-	 * Return the list of all tables
-	 * @return array
+	 * Return an array of all tables
 	 */
 	public function getTables()
 	{
 		return $this->tableList;
 	}
-	
-	/**
-	 * Return the number of tables in the database
-	 * @return integer
-	 */
-	public function countTables()
-	{
-		return count($this->tableList);
-	}
-
-	/**
-	 * Return the list of all tables that have a SQL representation
-	 * @return array
-	 */
-	public function getTablesForSql()
-	{
-		$tables = array();
-		foreach ($this->tableList as $table) {
-			if (!$table->isSkipSql()) {
-				$tables []= $table;
-			}
-		}
-		return $tables;
-	}
 
 	/**
 	 * Check whether the database has a table.
 	 * @param      string $name the name of the table (e.g. 'my_table')
-	 * @param      boolean $caseInsensitive Whether the check is case insensitive. False by default.
-	 *
 	 * @return     boolean
 	 */
-	public function hasTable($name, $caseInsensitive = false)
+	public function hasTable($name)
 	{
-		if ($caseInsensitive) {
-			return array_key_exists(strtolower($name), $this->tablesByLowercaseName);
-		} else {
-			return array_key_exists($name, $this->tablesByName);
-		}
+		return array_key_exists($name, $this->tablesByName);
 	}
 
 	/**
 	 * Return the table with the specified name.
 	 * @param      string $name The name of the table (e.g. 'my_table')
-	 * @param      boolean $caseInsensitive Whether the check is case insensitive. False by default.
-	 *
 	 * @return     Table a Table object or null if it doesn't exist
 	 */
-	public function getTable($name, $caseInsensitive = false)
+	public function getTable($name)
 	{
-		if ($this->hasTable($name, $caseInsensitive)) {
-			if ($caseInsensitive) {
-				return $this->tablesByLowercaseName[strtolower($name)];
-			} else {
-				return $this->tablesByName[$name];
-			}
+		if ($this->hasTable($name)) {
+			return $this->tablesByName[$name];
 		}
 		return null; // just to be explicit
 	}
@@ -370,13 +353,11 @@ class Database extends ScopedElement
 		if ($data instanceof Table) {
 			$tbl = $data; // alias
 			$tbl->setDatabase($this);
-			if ($tbl->getSchema() === null) $tbl->setSchema($this->getSchema());
 			if (isset($this->tablesByName[$tbl->getName()])) {
 				throw new EngineException("Duplicate table declared: " . $tbl->getName());
 			}
 			$this->tableList[] = $tbl;
-			$this->tablesByName[$tbl->getName()] = $tbl;
-			$this->tablesByLowercaseName[strtolower($tbl->getName())] = $tbl;
+			$this->tablesByName[ $tbl->getName() ] = $tbl;
 			$this->tablesByPhpName[ $tbl->getPhpName() ] = $tbl;
 			if ($tbl->getPackage() === null) {
 				$tbl->setPackage($this->getPackage());
@@ -385,7 +366,6 @@ class Database extends ScopedElement
 		} else {
 			$tbl = new Table();
 			$tbl->setDatabase($this);
-			$tbl->setSchema($this->getSchema());
 			$tbl->loadFromXML($data);
 			return $this->addTable($tbl); // call self w/ different param
 		}
@@ -440,8 +420,8 @@ class Database extends ScopedElement
 
   public function getGeneratorConfig()
   {
-  	if ($this->getAppData()) {
-  		return $this->getAppData()->getGeneratorConfig();
+  	if ($this->getAppData() && $this->getAppData()->getPlatform()) {
+  		return $this->getAppData()->getPlatform()->getGeneratorConfig();
   	} else {
   		return null;
   	}
@@ -515,72 +495,138 @@ class Database extends ScopedElement
     return $this->tablePrefix;
   }
 
-	/**
-	 * Get the next behavior on all tables, ordered by behavior priority,
-	 * and skipping the ones that were already executed,
-	 * 
-	 * @return Behavior
-	 */
-	public function getNextTableBehavior()
+
+	public function doFinalInitialization()
 	{
-		// order the behaviors according to Behavior::$tableModificationOrder
-		$behaviors = array();
-		foreach ($this->getTables() as $table) {
-			foreach ($table->getBehaviors() as $behavior) {
+    if($defaultBehaviors = $this->getBuildProperty('behaviorDefault')) {
+      // add generic behaviors from build.properties 
+      $defaultBehaviors = explode(',', $defaultBehaviors);
+      foreach ($defaultBehaviors as $behavior) {
+        $this->addBehavior(array('name' => trim($behavior)));
+      }
+    }
+    
+    // execute behavior database modifiers
+    foreach ($this->getBehaviors() as $behavior) {
+      $behavior->modifyDatabase();
+    }
+
+		$tables = $this->getTables();
+		
+		// execute early table behaviors
+		foreach ($tables as $table) {
+			foreach ($table->getEarlyBehaviors() as $behavior) {
 				if (!$behavior->isTableModified()) {
-					$behaviors[$behavior->getTableModificationOrder()][] = $behavior;
+					$behavior->getTableModifier()->modifyTable();
+					$behavior->setTableModified(true);
 				}
 			}
 		}
-		ksort($behaviors);
-		foreach ($behaviors as $behaviorList) {
-			foreach ($behaviorList as $behavior) {
-				return $behavior;
+			
+		for ($i=0,$size=count($tables); $i < $size; $i++) {
+			$currTable = $tables[$i];
+
+			// check schema integrity
+			// if idMethod="autoincrement", make sure a column is
+			// specified as autoIncrement="true"
+			// FIXME: Handle idMethod="native" via DB adapter.
+			/*
+
+			--- REMOVING THIS BECAUSE IT'S ANNOYING
+
+			if ($currTable->getIdMethod() == IDMethod::NATIVE ) {
+			$columns = $currTable->getColumns();
+			$foundOne = false;
+			for ($j=0, $cLen=count($columns); $j < $cLen && !$foundOne; $j++) {
+			$foundOne = $columns[$j]->isAutoIncrement();
+			}
+
+			if (!$foundOne) {
+			$errorMessage = "Table '" . $currTable->getName()
+			. "' is set to use native id generation, but it does not "
+			. "have a column which declared as the one to "
+			. "auto increment (i.e. autoIncrement=\"true\")";
+
+			throw new BuildException($errorMessage);
+			}
+			}
+			*/
+
+			$currTable->doFinalInitialization();
+
+			// setup reverse fk relations
+			$fks = $currTable->getForeignKeys();
+			for ($j=0, $fksLen=count($fks); $j < $fksLen; $j++) {
+				$currFK = $fks[$j];
+				$foreignTable = $this->getTable($currFK->getForeignTableName());
+				if ($foreignTable === null) {
+					throw new BuildException("ERROR!! Attempt to set foreign"
+					. " key to nonexistent table, "
+					. $currFK->getForeignTableName() . "!");
+				}
+
+				$referrers = $foreignTable->getReferrers();
+				if ($referrers === null || !in_array($currFK, $referrers, true) ) {
+					$foreignTable->addReferrer($currFK);
+				}
+
+				// local column references
+				$localColumnNames = $currFK->getLocalColumns();
+
+				for ($k=0,$lcnLen=count($localColumnNames); $k < $lcnLen; $k++) {
+
+					$local = $currTable->getColumn($localColumnNames[$k]);
+
+					// give notice of a schema inconsistency.
+					// note we do not prevent the npe as there is nothing
+					// that we can do, if it is to occur.
+					if ($local === null) {
+						throw new BuildException("ERROR!! Attempt to define foreign"
+						. " key with nonexistent column, "
+						. $localColumnNames[$k] . ", in table, "
+						. $currTable->getName() . "!");
+					}
+
+					//check for foreign pk's
+					if ($local->isPrimaryKey()) {
+						$currTable->setContainsForeignPK(true);
+					}
+
+				} // for each local col name
+
+				// foreign column references
+				$foreignColumnNames = $currFK->getForeignColumns();
+				for ($k=0,$fcnLen=count($localColumnNames); $k < $fcnLen; $k++) {
+					$foreign = $foreignTable->getColumn($foreignColumnNames[$k]);
+					// if the foreign column does not exist, we may have an
+					// external reference or a misspelling
+					if ($foreign === null) {
+						throw new BuildException("ERROR!! Attempt to set foreign"
+						. " key to nonexistent column, "
+						. $foreignColumnNames[$k] . ", in table, "
+						. $foreignTable->getName() . "!");
+					} else {
+						$foreign->addReferrer($currFK);
+					}
+				} // for each foreign col ref
 			}
 		}
-	}
-	
-	public function doFinalInitialization()
-	{
-		// add the referrers for the foreign keys
-		$this->setupTableReferrers();
 		
-		// add default behaviors to database
-		if($defaultBehaviors = $this->getBuildProperty('behaviorDefault')) {
-			// add generic behaviors from build.properties 
-			$defaultBehaviors = explode(',', $defaultBehaviors);
-			foreach ($defaultBehaviors as $behavior) {
-				$this->addBehavior(array('name' => trim($behavior)));
+		// Behaviors may have added behaviors of their own
+		// These behaviors must launch their modifyTable() method,
+		// Until there is no behavior left
+		$behaviorsLeft = true;
+		while ($behaviorsLeft) {
+			$behaviorsLeft = false;
+			foreach ($tables as $table) {
+				foreach ($table->getBehaviors() as $behavior) {
+					if (!$behavior->isTableModified()) {
+						$behavior->getTableModifier()->modifyTable();
+						$behavior->setTableModified(true);
+						$behaviorsLeft = true;
+					}
+				}
 			}
-		}
-		
-		// execute database behaviors
-		foreach ($this->getBehaviors() as $behavior) {
-			$behavior->modifyDatabase();
-		}
-		
-		// execute table behaviors (may add new tables and new behaviors)
-		while ($behavior = $this->getNextTableBehavior()) {
-			$behavior->getTableModifier()->modifyTable();
-			$behavior->setTableModified(true);
-		}
-		
-		// do naming and heavy indexing
-		foreach ($this->getTables() as $table) {
-			$table->doFinalInitialization();
-			// setup referrers again, since final initialization may have added columns
-			$table->setupReferrers(true);
-		}
-	}
-	
-	/**
-	 * Can be called several times
-	 */
-	protected function setupTableReferrers()
-	{
-		foreach ($this->getTables() as $table) {
-			$table->doNaming();
-			$table->setupReferrers();
 		}
 	}
 

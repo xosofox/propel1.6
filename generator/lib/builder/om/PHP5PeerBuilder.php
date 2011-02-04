@@ -8,8 +8,7 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/PeerBuilder.php';
-require_once dirname(__FILE__) . '/ClassTools.php';
+require_once 'builder/om/PeerBuilder.php';
 
 /**
  * Generates a PHP5 base Peer class for user object model (OM).
@@ -214,14 +213,8 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 		$this->addColumnNameConstants($script);
 		$this->addInheritanceColumnConstants($script);
-		if ($this->getTable()->hasEnumColumns()) {
-			$this->addEnumColumnConstants($script);
-		}
-		
+
 		$script .= "
-	/** The default string format for model objects of the related table **/
-	const DEFAULT_STRING_FORMAT = '" . $this->getTable()->getDefaultStringFormat() . "';
-	
 	/**
 	 * An identiy map to hold any loaded instances of ".$this->getObjectClassname()." objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -233,15 +226,10 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 
 		// apply behaviors
-		$this->applyBehaviorModifier('staticConstants', $script, "	");
-		$this->applyBehaviorModifier('staticAttributes', $script, "	");
+    $this->applyBehaviorModifier('staticAttributes', $script, "	");
 		
 		$this->addFieldNamesAttribute($script);
 		$this->addFieldKeysAttribute($script);
-
-		if ($this->getTable()->hasEnumColumns()) {
-			$this->addEnumColumnAttributes($script);
-		}
 	}
 
 	/**
@@ -252,37 +240,12 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 	{
 		foreach ($this->getTable()->getColumns() as $col) {
 			$script .= "
-	/** the column name for the " . strtoupper($col->getName()) ." field */
+	/** the column name for the ".strtoupper($col->getName()) ." field */
 	const ".$this->getColumnName($col) ." = '" . $this->getTable()->getName() . ".".strtoupper($col->getName())."';
 ";
 		} // foreach
 	}
 
-	/**
-	 * Adds the valueSet constants for ENUM columns.
-	 * @param      string &$script The script will be modified in this method.
-	 */
-	protected function addEnumColumnConstants(&$script)
-	{
-		foreach ($this->getTable()->getColumns() as $col) {
-			if ($col->isEnumType()) {
-				$script .= "
-	/** The enumerated values for the " . strtoupper($col->getName()) . " field */";
-				foreach ($col->getValueSet() as $value) {
-					$script .= "
-	const " . $this->getColumnName($col) . '_' . $this->getEnumValueConstant($value) . " = '" . $value . "';";
-				}
-				$script .= "
-";
-			}
-		}
-	}
-	
-	protected function getEnumValueConstant($value)
-	{
-		return strtoupper(preg_replace('/[^a-zA-Z0-9_\x7f-\xff]/', '_', $value));
-	}
-	
 	protected function addFieldNamesAttribute(&$script)
 	{
 		$table = $this->getTable();
@@ -379,31 +342,6 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 	} // addFielKeysAttribute
 
-	/**
-	 * Adds the valueSet attributes for ENUM columns.
-	 * @param      string &$script The script will be modified in this method.
-	 */
-	protected function addEnumColumnAttributes(&$script)
-	{
-		$script .= "
-	/** The enumerated values for this table */
-	protected static \$enumValueSets = array(";
-		foreach ($this->getTable()->getColumns() as $col) {
-			if ($col->isEnumType()) {
-				$script .= "
-		self::" . $this->getColumnName($col) ." => array(
-";
-				foreach ($col->getValueSet() as $value) {
-					$script .= "			" . $this->getStubPeerBuilder()->getClassname() . '::' . $this->getColumnName($col) . '_' . $this->getEnumValueConstant($value) . ",
-";
-				}
-				$script .= "		),";
-			}
-		}
-		$script .= "
-	);
-";
-	}
 
 	protected function addGetFieldNames(&$script)
 	{
@@ -453,46 +391,6 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 	} // addTranslateFieldName()
 
-	/**
-	 * Adds the getValueSets() method.
-	 * @param      string &$script The script will be modified in this method.
-	 */
-	protected function addGetValueSets(&$script)
-	{
-		$this->declareClassFromBuilder($this->getTableMapBuilder());
-		$callingClass = $this->getStubPeerBuilder()->getClassname();
-		$script .= "
-	/**
-	 * Gets the list of values for all ENUM columns
-	 * @return array
-	 */
-	public static function getValueSets()
-	{
-	  return {$callingClass}::\$enumValueSets;
-	}
-";
-	}
-
-	/**
-	 * Adds the getValueSet() method.
-	 * @param      string &$script The script will be modified in this method.
-	 */
-	protected function addGetValueSet(&$script)
-	{
-		$this->declareClassFromBuilder($this->getTableMapBuilder());
-		$script .= "
-	/**
-	 * Gets the list of values for an ENUM column
-	 * @return array list of possible values for the column
-	 */
-	public static function getValueSet(\$colname)
-	{
-		\$valueSets = self::getValueSets();
-		return \$valueSets[\$colname];
-	}
-";
-	}
-	
 	/**
 	 * Adds the buildTableMap() method.
 	 * @param      string &$script The script will be modified in this method.

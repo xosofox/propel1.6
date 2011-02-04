@@ -8,8 +8,8 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/../exception/EngineException.php';
-require_once dirname(__FILE__) . '/Database.php';
+require_once 'exception/EngineException.php';
+require_once 'model/Database.php';
 
 /**
  * A class for holding application data structures.
@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/Database.php';
  * @author     Leon Messerschmidt <leon@opticode.co.za> (Torque)
  * @author     John McNally <jmcnally@collab.net> (Torque)
  * @author     Daniel Rall <dlr@finemaltcoding.com> (Torque)
- * @version    $Revision: 2090 $
+ * @version    $Revision: 1640 $
  * @package    propel.generator.model
  */
 class AppData
@@ -35,13 +35,7 @@ class AppData
 	 * @var        string
 	 */
 	private $platform;
-	
-	/**
-	 * The generator configuration
-	 * @var        GeneratorConfig
-	 */
-	protected $generatorConfig;
-	
+
 	/**
 	 * Name of the database. Only one database definition
 	 * is allowed in one XML descriptor.
@@ -57,25 +51,13 @@ class AppData
 	/**
 	 * Creates a new instance for the specified database type.
 	 *
-	 * @param      PropelPlatformInterface $platform The default platform object to use for any databases added to this application model.
+	 * @param      Platform $platform The platform object to use for any databases added to this application model.
 	 */
-	public function __construct(PropelPlatformInterface $defaultPlatform = null)
+	public function __construct(Platform $platform)
 	{
-		if (null !== $defaultPlatform) {
-			$this->platform = $defaultPlatform;
-		}
+		$this->platform = $platform;
 	}
-
-	/**
-	 * Sets the platform object to use for any databases added to this application model. 
-	 *
-	 * @param PropelPlatformInterface $defaultPlatform
-	 */
-	public function setPlatform(PropelPlatformInterface $defaultPlatform)
-	{
-	  $this->platform = $defaultPlatform;
-	}
-	  
+  
 	/**
 	 * Gets the platform object to use for any databases added to this application model. 
 	 *
@@ -84,26 +66,6 @@ class AppData
 	public function getPlatform()
 	{
 	  return $this->platform;
-	}
-	
-	/**
-	 * Set the generator configuration
-	 *
-	 * @param GeneratorConfig $generatorConfig
-	 */
-	public function setGeneratorConfig(GeneratorConfig $generatorConfig)
-	{
-		$this->generatorConfig = $generatorConfig;
-	}
-
-	/**
-	 * Get the generator configuration
-	 *
-	 * @return GeneratorConfig
-	 */
-	public function getGeneratorConfig()
-	{
-		return $this->generatorConfig;
 	}
 	
 	/**
@@ -215,12 +177,7 @@ class AppData
 		if ($db instanceof Database) {
 			$db->setAppData($this);
 			if ($db->getPlatform() === null) {
-				if ($config = $this->getGeneratorConfig()) {
-					$pf = $config->getConfiguredPlatform(null, $db->getName());
-					$db->setPlatform($pf ? $pf : $this->platform);
-				} else {
-					$db->setPlatform($this->platform);
-				}
+				$db->setPlatform($this->platform);
 			}
 			$this->dbList[] = $db;
 			return $db;
@@ -228,6 +185,9 @@ class AppData
 			// XML attributes array / hash
 			$d = new Database();
 			$d->setAppData($this);
+			if ($d->getPlatform() === null) {
+				$d->setPlatform($this->platform);
+			}
 			$d->loadFromXML($db);
 			return $this->addDatabase($d); // calls self w/ different param type
 		}
@@ -245,53 +205,7 @@ class AppData
 	}
 
 	/**
-	 * Merge other appData objects into this object
-	 *
-	 * @param array[AppData] $ads 
-	 */
-	public function joinAppDatas($ads)
-	{
-		foreach ($ads as $appData) {
-			foreach ($appData->getDatabases(false) as $addDb) {
-				$addDbName = $addDb->getName();
-				if ($this->hasDatabase($addDbName)) {
-					$db = $this->getDatabase($addDbName, false);
-					// join tables
-					foreach ($addDb->getTables() as $addTable) {
-						if ($db->getTable($addTable->getName())) {
-							throw new Exception(sprintf('Duplicate table found: %s.', $addDbName));
-						}
-						$db->addTable($addTable);
-					}
-					// join database behaviors
-					foreach ($addDb->getBehaviors() as $addBehavior) {
-						if (!$db->hasBehavior($addBehavior->getName())) {
-							$db->addBehavior($addBehavior);
-						}
-					}
-				} else {
-					$this->addDatabase($addDb);
-				}
-			}
-		}
-	}
-	
-	/**
-	 * Returns the number of tables in all the databases of this AppData object
-	 *
-	 * @return integer
-	 */
-	public function countTables()
-	{
-		$nb = 0;
-		foreach ($this->getDatabases() as $database) {
-			$nb += $database->countTables();
-		}
-		return $nb;
-	}
-
-	/**
-	 * Creates a string representation of this AppData.
+	 * Creats a string representation of this AppData.
 	 * The representation is given in xml format.
 	 *
 	 * @return     string Representation in xml format
@@ -299,23 +213,10 @@ class AppData
 	public function toString()
 	{
 		$result = "<app-data>\n";
-		foreach ($this->dbList as $dbList) {
-			$result .= $dbList->toString();
-		}
-		if ($this->dbList) {
-			$result .= "\n";
+		for ($i=0,$size=count($this->dbList); $i < $size; $i++) {
+			$result .= $this->dbList[$i]->toString();
 		}
 		$result .= "</app-data>";
-		
 		return $result;
-	}
-
-	/**
-	 * Magic string method
-	 * @see toString()
-	 */
-	public function __toString()
-	{
-	  return $this->toString();
 	}
 }

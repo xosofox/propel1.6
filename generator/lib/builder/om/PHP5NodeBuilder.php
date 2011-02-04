@@ -8,13 +8,16 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/ObjectBuilder.php';
+require_once 'builder/om/ObjectBuilder.php';
 
 /**
  * Generates a PHP5 tree node Object class for user object model (OM).
  *
  * This class produces the base tree node object class (e.g. BaseMyTable) which contains all
  * the custom-built accessor and setter methods.
+ *
+ * This class replaces the Node.tpl, with the intent of being easier for users
+ * to customize (through extending & overriding).
  *
  * @author     Hans Lellelid <hans@xmpl.org>
  * @package    propel.generator.builder.om
@@ -265,8 +268,8 @@ abstract class ".$this->getClassname()." implements IteratorAggregate {
 
 		\$itclass = ucfirst(strtolower(\$type)) . 'OrderNodeIterator';
 
-    require_once('propel/om/' . \$itclass . '.php');
-		return new \$itclass(\$this, \$opts);
+    require_once('propel/om/' . \$itclass . '.php'); 
+		return new \$itclass(\$this, \$opts); 
 	}
 ";
 	}
@@ -654,7 +657,7 @@ abstract class ".$this->getClassname()." implements IteratorAggregate {
 		
 		if (!\$this->obj->isNew()) \$con->beginTransaction();
 		
-		try {
+		try {	
 			if (\$beforeNode)
 			{
 				// Inserting before a node.

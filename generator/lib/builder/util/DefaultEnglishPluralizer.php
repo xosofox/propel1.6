@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/Pluralizer.php';
+require_once 'builder/util/Pluralizer.php';
 
 /**
  * The default Enlglish pluralizer class.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2087 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.builder.util
  */
 class DefaultEnglishPluralizer implements Pluralizer

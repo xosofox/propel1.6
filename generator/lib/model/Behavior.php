@@ -8,14 +8,14 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/Index.php';
-require_once dirname(__FILE__) . '/../builder/util/PropelTemplate.php';
+require_once 'model/Index.php';
+require_once 'builder/util/PropelTemplate.php';
 
 /**
  * Information about behaviors of a table.
  *
  * @author     François Zaninotto
- * @version    $Revision: 2172 $
+ * @version    $Revision: 1839 $
  * @package    propel.generator.model
  */
 class Behavior extends XMLElement
@@ -26,9 +26,9 @@ class Behavior extends XMLElement
 	protected $name;
 	protected $parameters = array();
 	protected $isTableModified = false;
+	protected $isEarly = false;
 	protected $dirname;
 	protected $additionalBuilders = array();
-	protected $tableModificationOrder = 50;
 	
 	public function setName($name)
 	{
@@ -98,28 +98,6 @@ class Behavior extends XMLElement
 	}
 
 	/**
-	 * Define when this behavior must execute its modifyTable() relative to other behaviors.
-	 * The bigger the value, the later the behavior is executed. Default is 50.
-	 *
-	 * @param $tableModificationOrder integer 
-	 */
-	public function setTableModificationOrder($tableModificationOrder)
-	{
-		$this->tableModificationOrder = $tableModificationOrder;
-	}
-
-	/**
-	 * Get when this behavior must execute its modifyTable() relative to other behaviors.
-	 * The bigger the value, the later the behavior is executed. Default is 50.
-	 *
-	 * @return integer 
-	 */
-	public function getTableModificationOrder()
-	{
-		return $this->tableModificationOrder;
-	}
-	
-	/**
 	 * This method is automatically called on database behaviors when the database model is finished
 	 * Propagate the behavior to the tables of the database
 	 * Override this method to have a database behavior do something special
@@ -149,6 +127,16 @@ class Behavior extends XMLElement
 	public function isTableModified()
 	{
 		return $this->isTableModified;
+	}
+
+	public function setEarly($bool = true)
+	{
+		$this->isEarly = $bool;
+	}
+	
+	public function isEarly()
+	{
+		return $this->isEarly;
 	}
 	
 	/**

@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
+require_once 'reverse/BaseSchemaParser.php';
 
 /**
  * Postgresql database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2090 $
+ * @version    $Revision: 1928 $
  * @package    propel.generator.reverse.pgsql
  */
 class PgsqlSchemaParser extends BaseSchemaParser
@@ -75,7 +75,7 @@ class PgsqlSchemaParser extends BaseSchemaParser
 	/**
 	 *
 	 */
-	public function parse(Database $database, Task $task = null)
+	public function parse(Database $database, PDOTask $task = null)
 	{
 		$stmt = $this->dbh->query("SELECT version() as ver");
 		$nativeVersion = $stmt->fetchColumn();
@@ -102,13 +102,10 @@ class PgsqlSchemaParser extends BaseSchemaParser
 		$tableWraps = array();
 
 		// First load the tables (important that this happen before filling out details of tables)
-		if ($task) $task->log("Reverse Engineering Tables", Project::MSG_VERBOSE);
+		$task->log("Reverse Engineering Tables");
 		while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 			$name = $row['relname'];
-			if ($name == $this->getMigrationTable()) {
-				continue;
-			}
-			if ($task) $task->log("  Adding table '" . $name . "'", Project::MSG_VERBOSE);
+			$task->log("  Adding table '" . $name . "'");
 			$oid = $row['oid'];
 			$table = new Table($name);
 			$database->addTable($table);
@@ -121,16 +118,16 @@ class PgsqlSchemaParser extends BaseSchemaParser
 		}
 
 		// Now populate only columns.
-		if ($task) $task->log("Reverse Engineering Columns", Project::MSG_VERBOSE);
+		$task->log("Reverse Engineering Columns");
 		foreach ($tableWraps as $wrap) {
-			if ($task) $task->log("  Adding columns for table '" . $wrap->table->getName() . "'", Project::MSG_VERBOSE);
+			$task->log("  Adding columns for table '" . $wrap->table->getName() . "'");
 			$this->addColumns($wrap->table, $wrap->oid, $version);
 		}
 
 		// Now add indexes and constraints.
-		if ($task) $task->log("Reverse Engineering Indices And Constraints", Project::MSG_VERBOSE);
+		$task->log("Reverse Engineering Indices And Constraints");
 		foreach ($tableWraps as $wrap) {
-			if ($task) $task->log("  Adding indices and constraints for table '" . $wrap->table->getName() . "'", Project::MSG_VERBOSE);
+			$task->log("  Adding indices and constraints for table '" . $wrap->table->getName() . "'");
 			$this->addForeignKeys($wrap->table, $wrap->oid, $version);
 			$this->addIndexes($wrap->table, $wrap->oid, $version);
 			$this->addPrimaryKey($wrap->table, $wrap->oid, $version);
@@ -152,6 +149,7 @@ class PgsqlSchemaParser extends BaseSchemaParser
 	 */
 	protected function addColumns(Table $table, $oid, $version)
 	{
+
 		// Get the columns, types, etc.
 		// Based on code from pgAdmin3 (http://www.pgadmin.org/)
 		$stmt = $this->dbh->prepare("SELECT
@@ -220,8 +218,8 @@ class PgsqlSchemaParser extends BaseSchemaParser
 			// if column has a default
 			if (($boolHasDefault == 't') && (strlen (trim ($default)) > 0)) {
 				if (!preg_match('/^nextval\(/', $default)) {
-					$strDefault= preg_replace('/::[\W\D]*/', '', $default);
-					$default = preg_replace('/(\'?)\'/', '${1}', $strDefault);
+					$strDefault= preg_replace ('/::[\W\D]*/', '', $default);
+					$default = str_replace ("'", '', $strDefault);
 				} else {
 					$autoincrement = true;
 					$default = null;
@@ -347,9 +345,9 @@ class PgsqlSchemaParser extends BaseSchemaParser
 								          confupdtype,
 								          confdeltype,
 								          CASE nl.nspname WHEN 'public' THEN cl.relname ELSE nl.nspname||'.'||cl.relname END as fktab,
-										  array_agg(DISTINCT a2.attname) AS fkcols,
+								          a2.attname as fkcol,
 								          CASE nr.nspname WHEN 'public' THEN cr.relname ELSE nr.nspname||'.'||cr.relname END as reftab,
-								          array_agg(DISTINCT a1.attname) AS refcols
+								          a1.attname as refcol
 								    FROM pg_constraint ct
 								         JOIN pg_class cl ON cl.oid=conrelid
 								         JOIN pg_class cr ON cr.oid=confrelid
@@ -360,9 +358,8 @@ class PgsqlSchemaParser extends BaseSchemaParser
 								    WHERE
 								         contype='f'
 								         AND conrelid = ?
-							         	 AND a2.attnum = ANY (ct.conkey)
-							         	 AND a1.attnum = ANY (ct.confkey)
-									GROUP BY conname, confupdtype, confdeltype, fktab, reftab
+								         AND a2.attnum = ct.conkey[1]
+								         AND a1.attnum = ct.confkey[1]
 								    ORDER BY conname");
 		$stmt->bindValue(1, $oid);
 		$stmt->execute();
@@ -373,9 +370,9 @@ class PgsqlSchemaParser extends BaseSchemaParser
 
 			$name = $row['conname'];
 			$local_table = $row['fktab'];
-			$local_columns = explode(',', trim($row['fkcols'], '{}'));
+			$local_column = $row['fkcol'];
 			$foreign_table = $row['reftab'];
-			$foreign_columns = explode(',', trim($row['refcols'], '{}'));
+			$foreign_column = $row['refcol'];
 
 			// On Update
 			switch ($row['confupdtype']) {
@@ -409,24 +406,21 @@ class PgsqlSchemaParser extends BaseSchemaParser
 			}
 
 			$foreignTable = $database->getTable($foreign_table);
+			$foreignColumn = $foreignTable->getColumn($foreign_column);
+
 			$localTable   = $database->getTable($local_table);
+			$localColumn   = $localTable->getColumn($local_column);
 
 			if (!isset($foreignKeys[$name])) {
 				$fk = new ForeignKey($name);
-				$fk->setForeignTableCommonName($foreignTable->getCommonName());
-				$fk->setForeignSchemaName($foreignTable->getSchema());
+				$fk->setForeignTableName($foreignTable->getName());
 				$fk->setOnDelete($ondelete);
 				$fk->setOnUpdate($onupdate);
 				$table->addForeignKey($fk);
 				$foreignKeys[$name] = $fk;
 			}
-			
-			for ($i = 0; $i < count($local_columns); $i++) {
-				$foreignKeys[$name]->addReference(
-					$localTable->getColumn($local_columns[$i]),
-					$foreignTable->getColumn($foreign_columns[$i])
-				);
-			}
+
+			$foreignKeys[$name]->addReference($localColumn, $foreignColumn);
 		}
 	}
 

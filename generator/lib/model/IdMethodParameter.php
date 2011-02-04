@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/XMLElement.php';
+require_once 'model/XMLElement.php';
 
 /**
  * Information related to an ID method.
@@ -16,7 +16,7 @@ require_once dirname(__FILE__) . '/XMLElement.php';
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     John McNally <jmcnally@collab.net> (Torque)
  * @author     Daniel Rall <dlr@collab.net> (Torque)
- * @version    $Revision: 1834 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.model
  */
 class IdMethodParameter extends XMLElement

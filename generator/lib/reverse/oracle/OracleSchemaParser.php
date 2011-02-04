@@ -8,14 +8,14 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
+require_once 'reverse/BaseSchemaParser.php';
 
 /**
  * Oracle database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
  * @author     Guillermo Gutierrez <ggutierrez@dailycosas.net> (Adaptation)
- * @version    $Revision: 2168 $
+ * @version    $Revision: 1918 $
  * @package    propel.generator.reverse.oracle
  */
 class OracleSchemaParser extends BaseSchemaParser
@@ -34,7 +34,7 @@ class OracleSchemaParser extends BaseSchemaParser
 	 * 
 	 * Supported but non existant as a specific type in Oracle: 
 	 *   DECIMAL (NUMBER with scale), 
-	 *   DOUBLE (FLOAT with precision = 126)
+	 *   DOUBLE (FLOAT with precision = 126) 
 	 *
 	 * @var        array
 	 */
@@ -70,23 +70,20 @@ class OracleSchemaParser extends BaseSchemaParser
 	 * Searches for tables in the database. Maybe we want to search also the views.
 	 * @param	Database $database The Database model class to add tables to.
 	 */
-	public function parse(Database $database, Task $task = null)
+	public function parse(Database $database, PDOTask $task = null)
 	{
 		$tables = array();
 		$stmt = $this->dbh->query("SELECT OBJECT_NAME FROM USER_OBJECTS WHERE OBJECT_TYPE = 'TABLE'");
 		
-		if ($task) $task->log("Reverse Engineering Table Structures", Project::MSG_VERBOSE);
+		$task->log("Reverse Engineering Table Structures");
 		// First load the tables (important that this happen before filling out details of tables)
 		while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 			if (strpos($row['OBJECT_NAME'], '$') !== false) {
 				// this is an Oracle internal table or materialized view - prune
 				continue;
 			}
-			if (strtoupper($name) == strtoupper($this->getMigrationTable())) {
-				continue;
-			}
 			$table = new Table($row['OBJECT_NAME']);
-			if ($task) $task->log("Adding table '" . $table->getName() . "'", Project::MSG_VERBOSE);
+			$task->log("Adding table '" . $table->getName() . "'");
 			$database->addTable($table);
 			// Add columns, primary keys and indexes.
 			$this->addColumns($table);
@@ -95,10 +92,10 @@ class OracleSchemaParser extends BaseSchemaParser
 			$tables[] = $table;
 		}
 
-		if ($task) $task->log("Reverse Engineering Foreign Keys", Project::MSG_VERBOSE);
+		$task->log("Reverse Engineering Foreign Keys");
 		
 		foreach ($tables as $table) {
-			if ($task) $task->log("Adding foreign keys for table '" . $table->getName() . "'", Project::MSG_VERBOSE);
+			$task->log("Adding foreign keys for table '" . $table->getName() . "'");
 			$this->addForeignKeys($table);
 		}
 		
@@ -204,9 +201,9 @@ class OracleSchemaParser extends BaseSchemaParser
 	 * @param      Table $table The Table model class to add FKs to
 	 */
 	protected function addForeignKeys(Table $table)
-	{
+	{	
 		// local store to avoid duplicates
-		$foreignKeys = array();
+		$foreignKeys = array(); 
 		
 		$stmt = $this->dbh->query("SELECT CONSTRAINT_NAME, DELETE_RULE, R_CONSTRAINT_NAME FROM USER_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'R' AND TABLE_NAME = '" . $table->getName(). "'");
 		/* @var stmt PDOStatement */
@@ -222,7 +219,7 @@ class OracleSchemaParser extends BaseSchemaParser
 						
 			if (!isset($foreignKeys[$row["CONSTRAINT_NAME"]])) {
 				$fk = new ForeignKey($row["CONSTRAINT_NAME"]);
-				$fk->setForeignTableCommonName($foreignReferenceInfo['TABLE_NAME']);
+				$fk->setForeignTableName($foreignReferenceInfo['TABLE_NAME']);
 				$onDelete = ($row["DELETE_RULE"] == 'NO ACTION') ? 'NONE' : $row["DELETE_RULE"];
 				$fk->setOnDelete($onDelete);
 				$fk->setOnUpdate($onDelete);

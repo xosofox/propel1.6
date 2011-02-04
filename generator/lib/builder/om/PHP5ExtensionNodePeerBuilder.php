@@ -8,13 +8,16 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/PeerBuilder.php';
+require_once 'builder/om/PeerBuilder.php';
 
 /**
  * Generates the empty PHP5 stub node peer class for user object model (OM).
  *
  * This class produces the empty stub class that can be customized with application
  * business logic, custom behavior, etc.
+ *
+ * This class replaces the ExtensionNodePeer.tpl, with the intent of being easier for users
+ * to customize (through extending & overriding).
  *
  * @author     Hans Lellelid <hans@xmpl.org>
  * @package    propel.generator.builder.om

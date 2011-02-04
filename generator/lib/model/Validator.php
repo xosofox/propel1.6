@@ -8,16 +8,16 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) .  '/XMLElement.php';
-require_once dirname(__FILE__) . '/../exception/EngineException.php';
-require_once dirname(__FILE__) . '/PropelTypes.php';
-require_once dirname(__FILE__) . '/Rule.php';
+require_once 'model/XMLElement.php';
+require_once 'exception/EngineException.php';
+require_once 'model/PropelTypes.php';
+require_once 'model/Rule.php';
 
 /**
  * Validator.
  *
  * @author     Michael Aichler <aichler@mediacluster.de> (Propel)
- * @version    $Revision: 1834 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.model
  */
 class Validator extends XMLElement

@@ -8,15 +8,15 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/XMLElement.php';
-require_once dirname(__FILE__) . '/../exception/EngineException.php';
+require_once 'model/XMLElement.php';
+require_once 'exception/EngineException.php';
 
 /**
  * Information about indices of a table.
  *
  * @author     Jason van Zyl <vanzyl@apache.org>
  * @author     Daniel Rall <dlr@finemaltcoding.com>
- * @version    $Revision: 2090 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.model
  */
 class Index extends XMLElement
@@ -49,7 +49,7 @@ class Index extends XMLElement
 		$table = $this->getTable();
 		$inputs = array();
 		$inputs[] = $table->getDatabase();
-		$inputs[] = $table->getCommonName();
+		$inputs[] = $table->getName();
 		if ($this->isUnique()) {
 			$inputs[] = "U";
 		} else {
@@ -114,11 +114,7 @@ class Index extends XMLElement
 				// still no name
 			}
 		}
-		if ($database = $this->getTable()->getDatabase()) {
-			return substr($this->indexName, 0, $database->getPlatform()->getMaxColumnNameLength());
-		} else {
-			return $this->indexName;
-		}
+		return substr($this->indexName, 0, $this->getTable()->getDatabase()->getPlatform()->getMaxColumnNameLength());
 	}
 
 	/**
@@ -232,7 +228,7 @@ class Index extends XMLElement
 
 	/**
 	 * Return a comma delimited string of the columns which compose this index.
-	 * @deprecated because Column::makeList() is deprecated; use the array-returning getColumns() instead.
+	 * @deprecated because Column::makeList() is deprecated; use the array-returning getColumns() and DDLBuilder->getColumnList() instead instead.
 	 */
 	public function getColumnList()
 	{
@@ -248,33 +244,6 @@ class Index extends XMLElement
 		return $this->getColumns();
 	}
 
-	/**
-	 * Check whether this index has a given column at a given position
-	 *
-	 * @param integer $pos Position in the column list
-	 * @param string  $name Column name
-	 * @param integer $size optional size check
-	 * @param boolean $caseInsensitive Whether the comparison is case insensitive.
-	 *                                 False by default.
-	 *
-	 * @return boolean
-	 */
-	public function hasColumnAtPosition($pos, $name, $size = null, $caseInsensitive = false)
-	{
-		if (!isset($this->indexColumns[$pos])) {
-			return false;
-		}
-		$test = $caseInsensitive ?
-			strtolower($this->indexColumns[$pos]) != strtolower($name) :
-			$this->indexColumns[$pos] != $name;
-		if ($test) {
-			return false;
-		}
-		if (null !== $size && $this->indexColumnSizes[$name] != $size) {
-			return false;
-		}
-		return true;
-	}
 	
 	/**
 	 * Check whether the index has columns.

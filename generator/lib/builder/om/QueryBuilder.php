@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/OMBuilder.php';
+require_once 'builder/om/OMBuilder.php';
 
 /**
  * Generates a PHP5 base Query class for user object model (OM).
@@ -181,9 +181,6 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 		$this->addFilterByPrimaryKeys($script);
 		foreach ($this->getTable()->getColumns() as $col) {
 			$this->addFilterByCol($script, $col);
-			if ($col->getType() === PropelTypes::PHP_ARRAY && $col->isNamePlural()) {
-				$this->addFilterByArrayCol($script, $col);
-			}
 		}
 		foreach ($this->getTable()->getForeignKeys() as $fk) {
 			$this->addFilterByFK($script, $fk);
@@ -451,7 +448,7 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 	 * @return    PropelObjectCollection|array|mixed the list of results, formatted by the current formatter
 	 */
 	public function findPks(\$keys, \$con = null)
-	{
+	{	
 		\$criteria = \$this->isKeepQuery() ? clone \$this : \$this;
 		return \$this
 			->filterByPrimaryKeys(\$keys)
@@ -574,9 +571,6 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 			$script .= "
 	 * @param     " . $col->getPhpType() . "|array \$$variableName The value to use as filter.
 	 *            Accepts an associative array('min' => \$minValue, 'max' => \$maxValue)";
-		} elseif ($col->getType() == PropelTypes::PHP_ARRAY) {
-			$script .= "
-	 * @param     array \$$variableName The values to use as filter.";
 		} elseif ($col->isTextType()) {
 			$script .= "
 	 * @param     string \$$variableName The value to use as filter.
@@ -620,64 +614,6 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 				\$comparison = Criteria::IN;
 			}
 		}";
-		} elseif ($col->getType() == PropelTypes::OBJECT) {
-			$script .= "
-		if (is_object(\$$variableName)) {
-			\$$variableName = serialize(\$$variableName);
-		}";
-		} elseif ($col->getType() == PropelTypes::PHP_ARRAY) {
-			$script .= "
-		\$key = \$this->getAliasedColName($qualifiedName);
-		if (null === \$comparison || \$comparison == Criteria::CONTAINS_ALL) {
-			foreach (\$$variableName as \$value) {
-				\$value = '%| ' . \$value . ' |%';
-				if(\$this->containsKey(\$key)) {
-					\$this->addAnd(\$key, \$value, Criteria::LIKE);
-				} else {
-					\$this->add(\$key, \$value, Criteria::LIKE);
-				}
-			}
-			return \$this;
-		} elseif (\$comparison == Criteria::CONTAINS_SOME) {
-			foreach (\$$variableName as \$value) {
-				\$value = '%| ' . \$value . ' |%';
-				if(\$this->containsKey(\$key)) {
-					\$this->addOr(\$key, \$value, Criteria::LIKE);
-				} else {
-					\$this->add(\$key, \$value, Criteria::LIKE);
-				}
-			}
-			return \$this;
-		} elseif (\$comparison == Criteria::CONTAINS_NONE) {
-			foreach (\$$variableName as \$value) {
-				\$value = '%| ' . \$value . ' |%';
-				if(\$this->containsKey(\$key)) {
-					\$this->addAnd(\$key, \$value, Criteria::NOT_LIKE);
-				} else {
-					\$this->add(\$key, \$value, Criteria::NOT_LIKE);
-				}
-			}
-			\$this->addOr(\$key, null, Criteria::ISNULL);
-			return \$this;
-		}";
-		} elseif ($col->getType() == PropelTypes::ENUM) {
-			$script .= "
-		\$valueSet = " . $this->getPeerClassname() . "::getValueSet(" . $this->getColumnConstant($col) . ");
-		if (is_scalar(\$$variableName)) {
-			if (!in_array(\$$variableName, \$valueSet)) {
-				throw new PropelException(sprintf('Value \"%s\" is not accepted in this enumerated column', \$$variableName));
-			}
-			\$$variableName = array_search(\$$variableName, \$valueSet);
-		} elseif (is_array(\$$variableName)) {
-			\$convertedValues = array();
-			foreach (\$$variableName as \$value) {
-				if (!in_array(\$value, \$valueSet)) {
-					throw new PropelException(sprintf('Value \"%s\" is not accepted in this enumerated column', \$value));
-				}
-				\$convertedValues []= array_search(\$value, \$valueSet);
-			}
-			\$$variableName = \$convertedValues;
-		}";
 		} elseif ($col->isTextType()) {
 			$script .= "
 		if (null === \$comparison) {
@@ -699,49 +635,6 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 	}
 ";
 	}
-
-	/**
-	 * Adds the singular filterByCol method for an Arry column.
-	 * @param      string &$script The script will be modified in this method.
-	 */
-	protected function addFilterByArrayCol(&$script, $col)
-	{
-		$colPhpName = $col->getPhpName();
-		$singularPhpName = rtrim($colPhpName, 's');
-		$colName = $col->getName();
-		$variableName = $col->getStudlyPhpName();
-		$qualifiedName = $this->getColumnConstant($col);
-		$script .= "
-	/**
-	 * Filter the query on the $colName column
-	 * @param     mixed \$$variableName The value to use as filter
-	 * @param     string \$comparison Operator to use for the column comparison, defaults to Criteria::CONTAINS_ALL
-	 *
-	 * @return    " . $this->getStubQueryBuilder()->getClassname() . " The current query, for fluid interface
-	 */
-	public function filterBy$singularPhpName(\$$variableName = null, \$comparison = null)
-	{
-		if (null === \$comparison || \$comparison == Criteria::CONTAINS_ALL) {
-			if (is_scalar(\$$variableName)) {
-				\$$variableName = '%| ' . \$$variableName . ' |%';
-				\$comparison = Criteria::LIKE;
-			}
-		} elseif (\$comparison == Criteria::CONTAINS_NONE) {
-			\$$variableName = '%| ' . \$$variableName . ' |%';
-			\$comparison = Criteria::NOT_LIKE;
-			\$key = \$this->getAliasedColName($qualifiedName);
-			if(\$this->containsKey(\$key)) {
-				\$this->addAnd(\$key, \$$variableName, \$comparison);
-			} else {
-				\$this->addAnd(\$key, \$$variableName, \$comparison);
-			}
-			\$this->addOr(\$key, null, Criteria::ISNULL);
-			return \$this;
-		}
-		return \$this->addUsingAlias($qualifiedName, \$$variableName, \$comparison);
-	}
-";
-	}
 	
 	/**
 	 * Adds the filterByFk method for this object.
@@ -749,64 +642,31 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 	 */
 	protected function addFilterByFk(&$script, $fk)
 	{
-		$this->declareClasses('PropelCollection', 'PropelException');
 		$table = $this->getTable();
 		$queryClass = $this->getStubQueryBuilder()->getClassname();
 		$fkTable = $this->getForeignTable($fk);
-		$fkStubObjectBuilder = $this->getNewStubObjectBuilder($fkTable);
-		$this->declareClassFromBuilder($fkStubObjectBuilder);
-		$fkPhpName = $fkStubObjectBuilder->getClassname();
+		$fkPhpName = $this->getNewStubObjectBuilder($fkTable)->getClassname();
 		$relationName = $this->getFKPhpNameAffix($fk);
 		$objectName = '$' . $fkTable->getStudlyPhpName();
 		$script .= "
 	/**
 	 * Filter the query by a related $fkPhpName object
-	 *";
-		if ($fk->isComposite()) {
-			$script .= "
-	 * @param     $fkPhpName $objectName The related object to use as filter";
-		} else {
-			$script .= "
-	 * @param     $fkPhpName|PropelCollection $objectName The related object(s) to use as filter";
-		}
-		$script .= "
+	 *
+	 * @param     $fkPhpName $objectName  the related object to use as filter
 	 * @param     string \$comparison Operator to use for the column comparison, defaults to Criteria::EQUAL
 	 *
 	 * @return    $queryClass The current query, for fluid interface
 	 */
 	public function filterBy$relationName($objectName, \$comparison = null)
 	{
-		if ($objectName instanceof $fkPhpName) {
-			return \$this";
+		return \$this";
 		foreach ($fk->getLocalForeignMapping() as $localColumn => $foreignColumn) {
 			$localColumnObject = $table->getColumn($localColumn);
 			$foreignColumnObject = $fkTable->getColumn($foreignColumn);
 			$script .= "
-				->addUsingAlias(" . $this->getColumnConstant($localColumnObject) . ", " . $objectName . "->get" . $foreignColumnObject->getPhpName() . "(), \$comparison)";
+			->addUsingAlias(" . $this->getColumnConstant($localColumnObject) . ", " . $objectName . "->get" . $foreignColumnObject->getPhpName() . "(), \$comparison)";
 		}
-		$script .= ";";
-		if (!$fk->isComposite()) {
-			$localColumnConstant = $this->getColumnConstant($fk->getLocalColumn());
-			$foreignColumnName = $fk->getForeignColumn()->getPhpName();
-			$script .= "
-		} elseif ($objectName instanceof PropelCollection) {
-			if (null === \$comparison) {
-				\$comparison = Criteria::IN;
-			}
-			return \$this
-				->addUsingAlias($localColumnConstant, {$objectName}->toKeyValue('PrimaryKey', '$foreignColumnName'), \$comparison);";
-		}
-		$script .= "
-		} else {";
-		if ($fk->isComposite()) {
-			$script .= "
-			throw new PropelException('filterBy$relationName() only accepts arguments of type $fkPhpName');";
-		} else {
-			$script .= "
-			throw new PropelException('filterBy$relationName() only accepts arguments of type $fkPhpName or PropelCollection');";
-		}
-		$script .= "
-		}
+		$script .= ";
 	}
 ";
 	}
@@ -817,13 +677,10 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 	 */
 	protected function addFilterByRefFk(&$script, $fk)
 	{
-		$this->declareClasses('PropelCollection', 'PropelException');
 		$table = $this->getTable();
 		$queryClass = $this->getStubQueryBuilder()->getClassname();
 		$fkTable = $this->getTable()->getDatabase()->getTable($fk->getTableName());
-		$fkStubObjectBuilder = $this->getNewStubObjectBuilder($fkTable);
-		$this->declareClassFromBuilder($fkStubObjectBuilder);
-		$fkPhpName = $fkStubObjectBuilder->getClassname();
+		$fkPhpName = $this->getNewStubObjectBuilder($fkTable)->getClassname();
 		$relationName = $this->getRefFKPhpNameAffix($fk);
 		$objectName = '$' . $fkTable->getStudlyPhpName();
 		$script .= "
@@ -837,34 +694,14 @@ abstract class ".$this->getClassname()." extends " . $parentClass . "
 	 */
 	public function filterBy$relationName($objectName, \$comparison = null)
 	{
-		if ($objectName instanceof $fkPhpName) {
-			return \$this";
+		return \$this";
 		foreach ($fk->getForeignLocalMapping() as $localColumn => $foreignColumn) {
 			$localColumnObject = $table->getColumn($localColumn);
 			$foreignColumnObject = $fkTable->getColumn($foreignColumn);
 			$script .= "
-				->addUsingAlias(" . $this->getColumnConstant($localColumnObject) . ", " . $objectName . "->get" . $foreignColumnObject->getPhpName() . "(), \$comparison)";
+			->addUsingAlias(" . $this->getColumnConstant($localColumnObject) . ", " . $objectName . "->get" . $foreignColumnObject->getPhpName() . "(), \$comparison)";
 		}
-		$script .= ";";
-		if (!$fk->isComposite()) {
-			$script .= "
-		} elseif ($objectName instanceof PropelCollection) {
-			return \$this
-				->use{$relationName}Query()
-					->filterByPrimaryKeys({$objectName}->getPrimaryKeys())
-				->endUse();";
-		}
-		$script .= "
-		} else {";
-		if ($fk->isComposite()) {
-			$script .= "
-			throw new PropelException('filterBy$relationName() only accepts arguments of type $fkPhpName');";
-		} else {
-			$script .= "
-			throw new PropelException('filterBy$relationName() only accepts arguments of type $fkPhpName or PropelCollection');";
-		}
-		$script .= "
-		}
+		$script .= ";
 	}
 ";
 	}

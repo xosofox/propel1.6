@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/Index.php';
+require_once 'model/Index.php';
 
 /**
  * Information about unique columns of a table.  This class assumes
@@ -20,7 +20,7 @@ require_once dirname(__FILE__) . '/Index.php';
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Jason van Zyl <jvanzyl@apache.org> (Torque)
  * @author     Daniel Rall <dlr@collab.net> (Torque)
- * @version    $Revision: 1834 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.model
  */
 class Unique extends Index

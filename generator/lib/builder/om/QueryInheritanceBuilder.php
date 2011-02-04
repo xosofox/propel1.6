@@ -8,8 +8,8 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/OMBuilder.php';
-require_once dirname(__FILE__) . '/ClassTools.php';
+require_once 'builder/om/OMBuilder.php';
+require_once 'builder/om/ClassTools.php';
 
 /**
  * Generates the empty PHP5 stub query class for use with single table inheritance.

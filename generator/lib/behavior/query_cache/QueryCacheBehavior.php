@@ -12,7 +12,7 @@
  * Speeds up queries on a model by caching the query
  *
  * @author     François Zaninotto
- * @version    $Revision: 2178 $
+ * @version    $Revision: 2067 $
  * @package    propel.generator.behavior.cacheable
  */
 class QueryCacheBehavior extends Behavior
@@ -186,7 +186,7 @@ protected function getSelectStatement(\$con = null)
 			}
 		}
 		\$stmt = \$con->prepare(\$sql);
-		\$db->bindValues(\$stmt, \$params, \$dbMap);
+		BasePeer::populateStmtValues(\$stmt, \$params, \$dbMap, \$db);
 		\$stmt->execute();
 		\$con->commit();
 	} catch (PropelException \$e) {
@@ -222,10 +222,10 @@ protected function getCountStatement(\$con = null)
 				\$this->addSelfSelectColumns();
 			}
 			\$params = array();
-			\$needsComplexCount = \$this->getGroupByColumns()
+			\$needsComplexCount = \$this->getGroupByColumns() 
 				|| \$this->getOffset()
-				|| \$this->getLimit()
-				|| \$this->getHaving()
+				|| \$this->getLimit() 
+				|| \$this->getHaving() 
 				|| in_array(Criteria::DISTINCT, \$this->getSelectModifiers());
 			if (\$needsComplexCount) {
 				if (BasePeer::needsSelectAliases(\$this)) {
@@ -246,7 +246,7 @@ protected function getCountStatement(\$con = null)
 			}
 		}
 		\$stmt = \$con->prepare(\$sql);
-		\$db->bindValues(\$stmt, \$params, \$dbMap);
+		BasePeer::populateStmtValues(\$stmt, \$params, \$dbMap, \$db);
 		\$stmt->execute();
 		\$con->commit();
 	} catch (PropelException \$e) {

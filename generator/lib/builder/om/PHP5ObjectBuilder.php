@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/ObjectBuilder.php';
+require_once 'builder/om/ObjectBuilder.php';
 
 /**
  * Generates a PHP5 base Object class for user object model (OM).
@@ -121,38 +121,33 @@ class PHP5ObjectBuilder extends ObjectBuilder
 	 */
 	protected function getDefaultValueString(Column $col)
 	{
-		$val = $col->getPhpDefaultValue();
-		if ($val === null) {
-			return var_export(null, true);
-		}
-		if ($col->isTemporalType()) {
-			$fmt = $this->getTemporalFormatter($col);
-			try {
-				if (!($this->getPlatform() instanceof MysqlPlatform &&
-				($val === '0000-00-00 00:00:00' || $val === '0000-00-00'))) {
-					// while technically this is not a default value of NULL,
-					// this seems to be closest in meaning.
-					$defDt = new DateTime($val);
-					$defaultValue = var_export($defDt->format($fmt), true);
+		$defaultValue = var_export(null, true);
+		if (($val = $col->getPhpDefaultValue()) !== null) {
+			if ($col->isTemporalType()) {
+				$fmt = $this->getTemporalFormatter($col);
+				try {
+					if (!($this->getPlatform() instanceof MysqlPlatform &&
+					($val === '0000-00-00 00:00:00' || $val === '0000-00-00'))) {
+						// while technically this is not a default value of NULL,
+						// this seems to be closest in meaning.
+						$defDt = new DateTime($val);
+						$defaultValue = var_export($defDt->format($fmt), true);
+					}
+				} catch (Exception $x) {
+					// prevent endless loop when timezone is undefined
+					date_default_timezone_set('America/Los_Angeles');
+					throw new EngineException(sprintf('Unable to parse default temporal value "%s" for column "%s"', $col->getDefaultValueString(), $col->getFullyQualifiedName()), $x);
 				}
-			} catch (Exception $x) {
-				// prevent endless loop when timezone is undefined
-				date_default_timezone_set('America/Los_Angeles');
-				throw new EngineException(sprintf('Unable to parse default temporal value "%s" for column "%s"', $col->getDefaultValueString(), $col->getFullyQualifiedName()), $x);
+			} else {
+				if ($col->isPhpPrimitiveType()) {
+					settype($val, $col->getPhpType());
+					$defaultValue = var_export($val, true);
+				} elseif ($col->isPhpObjectType()) {
+					$defaultValue = 'new '.$col->getPhpType().'(' . var_export($val, true) . ')';
+				} else {
+					throw new EngineException("Cannot get default value string for " . $col->getFullyQualifiedName());
+				}
 			}
-		} elseif ($col->isEnumType()) {
-			$valueSet = $col->getValueSet();
-			if (!in_array($val, $valueSet)) {
-				throw new EngineException(sprintf('Default Value "%s" is not among the enumerated values', $val));
-			}
-			$defaultValue = array_search($val, $valueSet);
-		} else if ($col->isPhpPrimitiveType()) {
-			settype($val, $col->getPhpType());
-			$defaultValue = var_export($val, true);
-		} elseif ($col->isPhpObjectType()) {
-			$defaultValue = 'new '.$col->getPhpType().'(' . var_export($val, true) . ')';
-		} else {
-			throw new EngineException("Cannot get default value string for " . $col->getFullyQualifiedName());
 		}
 		return $defaultValue;
 	}
@@ -372,10 +367,6 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 				$this->addColumnAttributeLoaderComment($script, $col);
 				$this->addColumnAttributeLoaderDeclaration($script, $col);
 			}
-			if ($col->getType() == PropelTypes::OBJECT || $col->getType() == PropelTypes::PHP_ARRAY) {
-				$this->addColumnAttributeUnserializedComment($script, $col);
-				$this->addColumnAttributeUnserializedDeclaration($script, $col);
-			}
 		}
 	}
 
@@ -445,35 +436,6 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		$clo = strtolower($col->getName());
 		$script .= "
 	protected \$".$clo."_isLoaded = false;
-";
-	}
-
-	/**
-	 * Adds the comment about the serialized attribute 
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col
-	 **/
-	protected function addColumnAttributeUnserializedComment(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$script .= "
-	/**
-	 * The unserialized \$$clo value - i.e. the persisted object.
-	 * This is necessary to avoid repeated calls to unserialize() at runtime.
-	 * @var        object
-	 */";
-	}
-
-	/**
-	 * Adds the declaration of the serialized attribute
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col
-	 **/
-	protected function addColumnAttributeUnserializedDeclaration(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName()) . "_unserialized";
-		$script .= "
-	protected \$" . $clo . ";
 ";
 	}
 
@@ -655,9 +617,9 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		$colconsts = array();
 		foreach ($colsWithDefaults as $col) {
 			$clo = strtolower($col->getName());
-			$defaultValue = $this->getDefaultValueString($col);
 			$script .= "
-		\$this->".$clo." = $defaultValue;";
+		\$this->".$clo." = ".$this->getDefaultValueString($col).";";
+
 		}
 	}
 
@@ -700,7 +662,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      Column $col The current column.
 	 * @see        addTemporalAccessor
 	 **/
-	public function addTemporalAccessorComment(&$script, Column $col) {
+	protected function addTemporalAccessorComment(&$script, Column $col) {
 		$clo = strtolower($col->getName());
 		$useDateTime = $this->getBuildProperty('useDateTimeClass');
 
@@ -753,7 +715,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      Column $col The current column.
 	 * @see        addTemporalAccessor
 	 **/
-	public function addTemporalAccessorOpen(&$script, Column $col) {
+	protected function addTemporalAccessorOpen(&$script, Column $col) {
 		$cfc = $col->getPhpName();
 
 		$defaultfmt = null;
@@ -888,167 +850,6 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	}
 
 	/**
-	 * Adds an object getter method.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        parent::addColumnAccessors()
-	 */
-	protected function addObjectAccessor(&$script, Column $col)
-	{
-		$this->addDefaultAccessorComment($script, $col);
-		$this->addDefaultAccessorOpen($script, $col);
-		$this->addObjectAccessorBody($script, $col);
-		$this->addDefaultAccessorClose($script, $col);
-	}
-
-	/**
-	 * Adds the function body for an object accessor method
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        addDefaultAccessor()
-	 **/
-	protected function addObjectAccessorBody(&$script, Column $col)
-	{
-		$cfc = $col->getPhpName();
-		$clo = strtolower($col->getName());
-		$cloUnserialized = $clo.'_unserialized';
-		if ($col->isLazyLoad()) {
-			$script .= "
-		if (!\$this->".$clo."_isLoaded && \$this->$clo === null && !\$this->isNew()) {
-			\$this->load$cfc(\$con);
-		}
-";
-		}
-
-		$script .= "
-		if (null == \$this->$cloUnserialized && null !== \$this->$clo) {
-			\$this->$cloUnserialized = unserialize(\$this->$clo);
-		}
-		return \$this->$cloUnserialized;";
-	}
-
-	/**
-	 * Adds an array getter method.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        parent::addColumnAccessors()
-	 */
-	protected function addArrayAccessor(&$script, Column $col)
-	{
-		$this->addDefaultAccessorComment($script, $col);
-		$this->addDefaultAccessorOpen($script, $col);
-		$this->addArrayAccessorBody($script, $col);
-		$this->addDefaultAccessorClose($script, $col);
-	}
-
-	/**
-	 * Adds the function body for an array accessor method
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        addDefaultAccessor()
-	 **/
-	protected function addArrayAccessorBody(&$script, Column $col)
-	{
-		$cfc = $col->getPhpName();
-		$clo = strtolower($col->getName());
-		$cloUnserialized = $clo.'_unserialized';
-		if ($col->isLazyLoad()) {
-			$script .= "
-		if (!\$this->".$clo."_isLoaded && \$this->$clo === null && !\$this->isNew()) {
-			\$this->load$cfc(\$con);
-		}
-";
-		}
-
-		$script .= "
-		if (null === \$this->$cloUnserialized) {
-			\$this->$cloUnserialized = array();
-		}
-		if (!\$this->$cloUnserialized && null !== \$this->$clo) {
-			\$$cloUnserialized = substr(\$this->$clo, 2, -2);
-			\$this->$cloUnserialized = \$$cloUnserialized ? explode(' | ', \$$cloUnserialized) : array();
-		}
-		return \$this->$cloUnserialized;";
-	}
-	
-	/**
-	 * Adds an enum getter method.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        parent::addColumnAccessors()
-	 */
-	protected function addEnumAccessor(&$script, Column $col)
-	{
-		$this->addDefaultAccessorComment($script, $col);
-		$this->addDefaultAccessorOpen($script, $col);
-		$this->addEnumAccessorBody($script, $col);
-		$this->addDefaultAccessorClose($script, $col);
-	}
-
-	/**
-	 * Adds the function body for an enum accessor method
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        addDefaultAccessor()
-	 **/
-	protected function addEnumAccessorBody(&$script, Column $col)
-	{
-		$cfc = $col->getPhpName();
-		$clo = strtolower($col->getName());
-		if ($col->isLazyLoad()) {
-			$script .= "
-		if (!\$this->".$clo."_isLoaded && \$this->$clo === null && !\$this->isNew()) {
-			\$this->load$cfc(\$con);
-		}
-";
-		}
-
-		$script .= "
-		if (null === \$this->$clo) {
-			return null;
-		}
-		\$valueSet = " . $this->getPeerClassname() . "::getValueSet(" . $this->getColumnConstant($col) . ");
-		if (!isset(\$valueSet[\$this->$clo])) {
-			throw new PropelException('Unknown stored enum key: ' . \$this->$clo);
-		}
-		return \$valueSet[\$this->$clo];";
-	}
-	
-	/**
-	 * Adds a tester method for an array column.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 */
-	protected function addHasArrayElement(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$cfc = $col->getPhpName();
-		$visibility = $col->getAccessorVisibility();
-		$singularPhpName = rtrim($cfc, 's');
-		$script .= "
-	/**
-	 * Test the presence of a value in the [$clo] array column value.
-	 * @param      mixed \$value
-	 * ".$col->getDescription();
-		if ($col->isLazyLoad()) {
-			$script .= "
-	 * @param      PropelPDO An optional PropelPDO connection to use for fetching this lazy-loaded column.";
-		}
-		$script .= "
-	 * @return     Boolean
-	 */
-	$visibility function has$singularPhpName(\$value";
-		if ($col->isLazyLoad()) $script .= ", PropelPDO \$con = null";
-		$script .= ")
-	{
-		return in_array(\$value, \$this->get$cfc(";
-		if ($col->isLazyLoad()) $script .= "\$con";
-		$script .= "));
-	} // has$singularPhpName()
-";
-	}
-	
-	/**
 	 * Adds a normal (non-temporal) getter method.
 	 * @param      string &$script The script will be modified in this method.
 	 * @param      Column $col The current column.
@@ -1068,7 +869,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      Column $col The current column.
 	 * @see        addDefaultAccessor()
 	 **/
-	public function addDefaultAccessorComment(&$script, Column $col) {
+	protected function addDefaultAccessorComment(&$script, Column $col) {
 		$clo=strtolower($col->getName());
 
 		$script .= "
@@ -1090,7 +891,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      Column $col The current column.
 	 * @see        addDefaultAccessor()
 	 **/
-	public function addDefaultAccessorOpen(&$script, Column $col) {
+	protected function addDefaultAccessorOpen(&$script, Column $col) {
 		$cfc = $col->getPhpName();
 		$visibility = $col->getAccessorVisibility();
 
@@ -1219,7 +1020,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 			// PDO_OCI returns a stream for CLOB objects, while other PDO adapters return a string...
 			$script .= "
 			\$this->$clo = stream_get_contents(\$row[0]);";
-		}	elseif ($col->isLobType() && !$platform->hasStreamBlobImpl()) {
+		} elseif ($col->isLobType() && !$platform->hasStreamBlobImpl()) {
 			$script .= "
 			if (\$row[0] !== null) {
 				\$this->$clo = fopen('php://memory', 'r+');
@@ -1281,7 +1082,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      Column $col The current column.
 	 * @see        addMutatorOpen()
 	 **/
-	public function addMutatorComment(&$script, Column $col) {
+	protected function addMutatorComment(&$script, Column $col) {
 		$clo = strtolower($col->getName());
 		$script .= "
 	/**
@@ -1298,7 +1099,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      Column $col The current column.
 	 * @see        addMutatorOpen()
 	 **/
-	public function addMutatorOpenOpen(&$script, Column $col) {
+	protected function addMutatorOpenOpen(&$script, Column $col) {
 		$cfc = $col->getPhpName();
 		$visibility = $col->getMutatorVisibility();
 
@@ -1462,8 +1263,16 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		}
 		$this->declareClasses($dateTimeClass, 'DateTimeZone');
 
-		$this->addTemporalMutatorComment($script, $col);
-		$this->addMutatorOpenOpen($script, $col);
+		$script .= "
+	/**
+	 * Sets the value of [$clo] column to a normalized version of the date/time value specified.
+	 * ".$col->getDescription()."
+	 * @param      mixed \$v string, integer (timestamp), or DateTime value.  Empty string will
+	 *						be treated as NULL for temporal objects.
+	 * @return     ".$this->getObjectClassname()." The current object (for fluent API support)
+	 */
+	".$visibility." function set$cfc(\$v)
+	{";
 		if ($col->isLazyLoad()) {
 			$script .= "
 		// explicitly set the is-loaded flag to true for this lazy load col;
@@ -1525,186 +1334,6 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		$this->addMutatorClose($script, $col);
 	}
 
-	public function addTemporalMutatorComment(&$script, Column $col)
-	{
-		$cfc = $col->getPhpName();
-		$clo = strtolower($col->getName());
-
-		$script .= "
-	/**
-	 * Sets the value of [$clo] column to a normalized version of the date/time value specified.
-	 * ".$col->getDescription()."
-	 * @param      mixed \$v string, integer (timestamp), or DateTime value.  Empty string will
-	 *						be treated as NULL for temporal objects.
-	 * @return     ".$this->getObjectClassname()." The current object (for fluent API support)
-	 */";
-	}
-
-	/**
-	 * Adds a setter for Object columns.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        parent::addColumnMutators()
-	 */
-	protected function addObjectMutator(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$cloUnserialized = $clo.'_unserialized';
-		$this->addMutatorOpen($script, $col);
-
-		$script .= "
-		if (\$this->$cloUnserialized !== \$v";
-		if (($def = $col->getDefaultValue()) !== null && !$def->isExpression()) {
-			$script .= " || \$this->isNew()";
-		}
-		$script .= ") {
-			\$this->$cloUnserialized = \$v;
-			\$this->$clo = serialize(\$v);
-			\$this->modifiedColumns[] = ".$this->getColumnConstant($col).";
-		}
-";
-		$this->addMutatorClose($script, $col);
-	}
-
-	/**
-	 * Adds a setter for Array columns.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        parent::addColumnMutators()
-	 */
-	protected function addArrayMutator(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$cloUnserialized = $clo.'_unserialized';
-		$this->addMutatorOpen($script, $col);
-
-		$script .= "
-		if (\$this->$cloUnserialized !== \$v";
-		if (($def = $col->getDefaultValue()) !== null && !$def->isExpression()) {
-			$script .= " || \$this->isNew()";
-		}
-		$script .= ") {
-			\$this->$cloUnserialized = \$v;
-			\$this->$clo = '| ' . implode(' | ', \$v) . ' |';
-			\$this->modifiedColumns[] = ".$this->getColumnConstant($col).";
-		}
-";
-		$this->addMutatorClose($script, $col);
-	}
-
-	/**
-	 * Adds a push method for an array column.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 */
-	protected function addAddArrayElement(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$cfc = $col->getPhpName();
-		$visibility = $col->getAccessorVisibility();
-		$singularPhpName = rtrim($cfc, 's');
-		$script .= "
-	/**
-	 * Adds a value to the [$clo] array column value.
-	 * @param      mixed \$value
-	 * ".$col->getDescription();
-		if ($col->isLazyLoad()) {
-			$script .= "
-	 * @param      PropelPDO An optional PropelPDO connection to use for fetching this lazy-loaded column.";
-		}
-		$script .= "
-	 * @return     ".$this->getObjectClassname()." The current object (for fluent API support)
-	 */
-	$visibility function add$singularPhpName(\$value";
-		if ($col->isLazyLoad()) $script .= ", PropelPDO \$con = null";
-		$script .= ")
-	{
-		\$currentArray = \$this->get$cfc(";
-		if ($col->isLazyLoad()) $script .= "\$con";
-		$script .= ");
-		\$currentArray []= \$value;
-		\$this->set$cfc(\$currentArray);
-		
-		return \$this;
-	} // add$singularPhpName()
-";
-	}
-
-	/**
-	 * Adds a remove method for an array column.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 */
-	protected function addRemoveArrayElement(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$cfc = $col->getPhpName();
-		$visibility = $col->getAccessorVisibility();
-		$singularPhpName = rtrim($cfc, 's');
-		$script .= "
-	/**
-	 * Removes a value from the [$clo] array column value.
-	 * @param      mixed \$value
-	 * ".$col->getDescription();
-		if ($col->isLazyLoad()) {
-			$script .= "
-	 * @param      PropelPDO An optional PropelPDO connection to use for fetching this lazy-loaded column.";
-		}
-		$script .= "
-	 * @return     ".$this->getObjectClassname()." The current object (for fluent API support)
-	 */
-	$visibility function remove$singularPhpName(\$value";
-		if ($col->isLazyLoad()) $script .= ", PropelPDO \$con = null";
-		// we want to reindex the array, so array_ functions are not the best choice
-		$script .= ")
-	{
-		\$targetArray = array();
-		foreach (\$this->get$cfc(";
-		if ($col->isLazyLoad()) $script .= "\$con";
-		$script .= ") as \$element) {
-			if (\$element != \$value) {
-				\$targetArray []= \$element;
-			}
-		}
-		\$this->set$cfc(\$targetArray);
-
-		return \$this;
-	} // remove$singularPhpName()
-";
-	}
-
-	/**
-	 * Adds a setter for Enum columns.
-	 * @param      string &$script The script will be modified in this method.
-	 * @param      Column $col The current column.
-	 * @see        parent::addColumnMutators()
-	 */
-	protected function addEnumMutator(&$script, Column $col)
-	{
-		$clo = strtolower($col->getName());
-		$this->addMutatorOpen($script, $col);
-
-		$script .= "
-		if (\$v !== null) {
-			\$valueSet = " . $this->getPeerClassname() . "::getValueSet(" . $this->getColumnConstant($col) . ");
-			if (!in_array(\$v, \$valueSet)) {
-				throw new PropelException(sprintf('Value \"%s\" is not accepted in this enumerated column', \$v));
-			}
-			\$v = array_search(\$v, \$valueSet);
-		}
-
-		if (\$this->$clo !== \$v";
-		if (($def = $col->getDefaultValue()) !== null && !$def->isExpression()) {
-			$script .= " || \$this->isNew()";
-		}
-		$script .= ") {
-			\$this->$clo = \$v;
-			\$this->modifiedColumns[] = ".$this->getColumnConstant($col).";
-		}
-";
-		$this->addMutatorClose($script, $col);
-	}
-	
 	/**
 	 * Adds setter method for "normal" columns.
 	 * @param      string &$script The script will be modified in this method.
@@ -1899,9 +1528,6 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 				} elseif ($col->isPhpPrimitiveType()) {
 					$script .= "
 			\$this->$clo = (\$row[\$startcol + $n] !== null) ? (".$col->getPhpType().") \$row[\$startcol + $n] : null;";
-				} elseif ($col->getType() == PropelTypes::OBJECT) {
-					$script .= "
-			\$this->$clo = \$row[\$startcol + $n];";
 				} elseif ($col->isPhpObjectType()) {
 					$script .= "
 			\$this->$clo = (\$row[\$startcol + $n] !== null) ? new ".$col->getPhpType()."(\$row[\$startcol + $n]) : null;";
@@ -2084,10 +1710,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	protected function addToArray(&$script)
 	{
 		$fks = $this->getTable()->getForeignKeys();
-		$referrers = $this->getTable()->getReferrers();
-		$hasFks = count($fks) > 0 || count($referrers) > 0;
-		$objectClassName = $this->getObjectClassname();
-		$pkGetter = $this->getTable()->hasCompositePrimaryKey() ? 'serialize($this->getPrimaryKey())' : '$this->getPrimaryKey()';
+		$hasFks = count($fks) > 0;
 		$script .= "
 	/**
 	 * Exports the object as an array.
@@ -2098,8 +1721,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param     string  \$keyType (optional) One of the class type constants BasePeer::TYPE_PHPNAME, BasePeer::TYPE_STUDLYPHPNAME,
 	 *                    BasePeer::TYPE_COLNAME, BasePeer::TYPE_FIELDNAME, BasePeer::TYPE_NUM.
 	 *                    Defaults to BasePeer::TYPE_PHPNAME.
-	 * @param     boolean \$includeLazyLoadColumns (optional) Whether to include lazy loaded columns. Defaults to TRUE.
-	 * @param     array \$alreadyDumpedObjects List of objects to skip to avoid recursion";
+	 * @param     boolean \$includeLazyLoadColumns (optional) Whether to include lazy loaded columns. Defaults to TRUE.";
 		if ($hasFks) {
 			$script .= "
 	 * @param     boolean \$includeForeignObjects (optional) Whether to include hydrated related objects. Default to FALSE.";
@@ -2108,12 +1730,8 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 *
 	 * @return    array an associative array containing the field names (as keys) and field values
 	 */
-	public function toArray(\$keyType = BasePeer::TYPE_PHPNAME, \$includeLazyLoadColumns = true, \$alreadyDumpedObjects = array()" . ($hasFks ? ", \$includeForeignObjects = false" : '') . ")
+	public function toArray(\$keyType = BasePeer::TYPE_PHPNAME, \$includeLazyLoadColumns = true" . ($hasFks ? ", \$includeForeignObjects = false" : '') . ")
 	{
-		if (isset(\$alreadyDumpedObjects['$objectClassName'][$pkGetter])) {
-			return '*RECURSION*';
-		}
-		\$alreadyDumpedObjects['$objectClassName'][$pkGetter] = true;
 		\$keys = ".$this->getPeerClassname()."::getFieldNames(\$keyType);
 		\$result = array(";
 		foreach ($this->getTable()->getColumns() as $num => $col) {
@@ -2133,21 +1751,8 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 			foreach ($fks as $fk) {
 				$script .= "
 			if (null !== \$this->" . $this->getFKVarName($fk) . ") {
-				\$result['" . $this->getFKPhpNameAffix($fk, $plural = false) . "'] = \$this->" . $this->getFKVarName($fk) . "->toArray(\$keyType, \$includeLazyLoadColumns,  \$alreadyDumpedObjects, true);
+				\$result['" . $this->getFKPhpNameAffix($fk, $plural = false) . "'] = \$this->" . $this->getFKVarName($fk) . "->toArray(\$keyType, \$includeLazyLoadColumns, true);
 			}";
-			}
-			foreach ($referrers as $fk) {
-				if ($fk->isLocalPrimaryKey()) {
-					$script .= "
-			if (null !== \$this->" . $this->getPKRefFKVarName($fk) . ") {
-				\$result['" . $this->getRefFKPhpNameAffix($fk, $plural = false) . "'] = \$this->" . $this->getPKRefFKVarName($fk) . "->toArray(\$keyType, \$includeLazyLoadColumns, \$alreadyDumpedObjects, true);
-			}";
-				} else {
-					$script .= "
-			if (null !== \$this->" . $this->getRefFKCollVarName($fk) . ") {
-				\$result['" . $this->getRefFKPhpNameAffix($fk, $plural = true) . "'] = \$this->" . $this->getRefFKCollVarName($fk) . "->toArray(null, true, \$keyType, \$includeLazyLoadColumns, \$alreadyDumpedObjects);
-			}";
-				}
 			}
 			$script .= "
 		}";
@@ -2872,7 +2477,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      ForeignKey $fk
 	 * @return     string
 	 */
-	public function getFKVarName(ForeignKey $fk)
+	protected function getFKVarName(ForeignKey $fk)
 	{
 		return 'a' . $this->getFKPhpNameAffix($fk, $plural = false);
 	}
@@ -2882,7 +2487,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      ForeignKey $fk
 	 * @return     string
 	 */
-	public function getRefFKCollVarName(ForeignKey $fk)
+	protected function getRefFKCollVarName(ForeignKey $fk)
 	{
 		return 'coll' . $this->getRefFKPhpNameAffix($fk, $plural = true);
 	}
@@ -2893,7 +2498,7 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * @param      ForeignKey $fk
 	 * @return     string
 	 */
-	public function getPKRefFKVarName(ForeignKey $fk)
+	protected function getPKRefFKVarName(ForeignKey $fk)
 	{
 		return 'single' . $this->getRefFKPhpNameAffix($fk, $plural = false);
 	}
@@ -3084,11 +2689,11 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		} else {
 			$script .= "
 			/* The following can be used additionally to
-				guarantee the related object contains a reference
-				to this object.  This level of coupling may, however, be
-				undesirable since it could result in an only partially populated collection
-				in the referenced object.
-				\$this->{$varName}->add".$this->getRefFKPhpNameAffix($fk, $plural = true)."(\$this);
+				 guarantee the related object contains a reference
+				 to this object.  This level of coupling may, however, be
+				 undesirable since it could result in an only partially populated collection
+				 in the referenced object.
+				 \$this->{$varName}->add".$this->getRefFKPhpNameAffix($fk, $plural = true)."(\$this);
 			 */";
 		}
 
@@ -3332,16 +2937,10 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 * however, you may wish to override this method in your stub class to provide setting appropriate
 	 * to your application -- for example, setting the initial array to the values stored in database.
 	 *
-	 * @param      boolean \$overrideExisting If set to true, the method call initializes
-	 *                                        the collection even if it is not empty
-	 *
 	 * @return     void
 	 */
-	public function init$relCol(\$overrideExisting = true)
+	public function init$relCol()
 	{
-		if (null !== \$this->$collName && !\$overrideExisting) {
-			return;
-		}
 		\$this->$collName = new PropelObjectCollection();
 		\$this->{$collName}->setModel('" . $this->getNewStubObjectBuilder($refFK->getTable())->getClassname() . "');
 	}
@@ -4433,10 +4032,9 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	 *
 	 * @param      object \$copyObj An object of ".$this->getObjectClassname()." (or compatible) type.
 	 * @param      boolean \$deepCopy Whether to also copy all rows that refer (by fkey) to the current row.
-	 * @param      boolean \$makeNew Whether to reset autoincrement PKs and make the object new.
 	 * @throws     PropelException
 	 */
-	public function copyInto(\$copyObj, \$deepCopy = false, \$makeNew = true)
+	public function copyInto(\$copyObj, \$deepCopy = false)
 	{";
 
 		$autoIncCols = array();
@@ -4497,8 +4095,8 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		} /* if (count referrers > 0 ) */
 
 		$script .= "
-		if (\$makeNew) {
-			\$copyObj->setNew(true);";
+
+		\$copyObj->setNew(true);";
 
 		// Note: we're no longer resetting non-autoincrement primary keys to default values
 		// due to: http://propel.phpdb.org/trac/ticket/618
@@ -4506,10 +4104,9 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 				$coldefval = $col->getPhpDefaultValue();
 				$coldefval = var_export($coldefval, true);
 				$script .= "
-			\$copyObj->set".$col->getPhpName() ."($coldefval); // this is a auto-increment column, so set to default value";
+		\$copyObj->set".$col->getPhpName() ."($coldefval); // this is a auto-increment column, so set to default value";
 		} // foreach
 		$script .= "
-		}
 	}
 ";
 	} // addCopyInto()
@@ -4529,13 +4126,8 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 	public function clear()
 	{";
 		foreach ($table->getColumns() as $col) {
-			$clo = strtolower($col->getName());
 			$script .= "
-		\$this->".$clo." = null;";
-			if($col->isLazyLoad()){
-				$script .= "
-		\$this->".$clo."_isLoaded = false;";
-			}
+		\$this->" . strtolower($col->getName()) . " = null;";
 		}
 
 		$script .= "
@@ -4567,13 +4159,13 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		$table = $this->getTable();
 		$script .= "
 	/**
-	 * Resets all references to other model objects or collections of model objects.
+	 * Resets all collections of referencing foreign keys.
 	 *
-	 * This method is a user-space workaround for PHP's inability to garbage collect
-	 * objects with circular references (even in PHP 5.3). This is currently necessary
-	 * when using Propel in certain daemon or large-volumne/high-memory operations.
+	 * This method is a user-space workaround for PHP's inability to garbage collect objects
+	 * with circular references.  This is currently necessary when using Propel in certain
+	 * daemon or large-volumne/high-memory operations.
 	 *
-	 * @param      boolean \$deep Whether to also clear the references on all referrer objects.
+	 * @param      boolean \$deep Whether to also clear the references on all associated objects.
 	 */
 	public function clearAllReferences(\$deep = false)
 	{
@@ -4582,20 +4174,21 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		foreach ($this->getTable()->getReferrers() as $refFK) {
 			if ($refFK->isLocalPrimaryKey()) {
 				$varName = $this->getPKRefFKVarName($refFK);
+				$vars[] = $varName;
 				$script .= "
 			if (\$this->$varName) {
 				\$this->{$varName}->clearAllReferences(\$deep);
 			}";
 			} else {
 				$varName = $this->getRefFKCollVarName($refFK);
+				$vars[] = $varName;
 				$script .= "
 			if (\$this->$varName) {
-				foreach (\$this->$varName as \$o) {
+				foreach ((array) \$this->$varName as \$o) {
 					\$o->clearAllReferences(\$deep);
 				}
 			}";
 			}
-			$vars[] = $varName;
 		}
 
 		$script .= "
@@ -4606,13 +4199,11 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 
 		foreach ($vars as $varName) {
 			$script .= "
-		if (\$this->$varName instanceof PropelCollection) {
-			\$this->{$varName}->clearIterator();
-		}
 		\$this->$varName = null;";
 		}
 
 		foreach ($table->getForeignKeys() as $fk) {
+			$className = $this->getForeignTable($fk)->getPhpName();
 			$varName = $this->getFKVarName($fk);
 			$script .= "
 		\$this->$varName = null;";
@@ -4642,21 +4233,9 @@ abstract class ".$this->getClassname()." extends ".$parentClass." ";
 		return (string) \$this->get{$column->getPhpName()}();
 	}
 ";
-				return;
+				break;
 			}
 		}
-		// no primary string column, falling back to default string format
-		$script .= "
-	/**
-	 * Return the string representation of this object
-	 *
-	 * @return string
-	 */
-	public function __toString()
-	{
-		return (string) \$this->exportTo(" . $this->getPeerClassname() . "::DEFAULT_STRING_FORMAT);
-	}
-";
 	}
 
 	/**

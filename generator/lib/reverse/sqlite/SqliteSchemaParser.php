@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
+require_once 'reverse/BaseSchemaParser.php';
 
 /**
  * SQLite database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2008 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.reverse.sqlite
  */
 class SqliteSchemaParser extends BaseSchemaParser
@@ -73,7 +73,7 @@ class SqliteSchemaParser extends BaseSchemaParser
 	/**
 	 *
 	 */
-	public function parse(Database $database, Task $task = null)
+	public function parse(Database $database, PDOTask $task = null)
 	{
 		$stmt = $this->dbh->query("SELECT name FROM sqlite_master WHERE type='table' UNION ALL SELECT name FROM sqlite_temp_master WHERE type='table' ORDER BY name;");
 
@@ -81,9 +81,6 @@ class SqliteSchemaParser extends BaseSchemaParser
 		$tables = array();
 		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
 			$name = $row[0];
-			if ($name == $this->getMigrationTable()) {
-				continue;
-			}
 			$table = new Table($name);
 			$database->addTable($table);
 			$tables[] = $table;

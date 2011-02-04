@@ -8,14 +8,14 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/XMLElement.php';
-require_once dirname(__FILE__) . '/../exception/EngineException.php';
+require_once 'model/XMLElement.php';
+require_once 'exception/EngineException.php';
 
 /**
  * Object to hold vendor-specific info.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2184 $
+ * @version    $Revision: 1612 $
  * @package    propel.generator.model
  */
 class VendorInfo extends XMLElement
@@ -137,16 +137,6 @@ class VendorInfo extends XMLElement
 	public function getParameters()
 	{
 		return $this->parameters;
-	}
-	
-	/**
-	 * Tests whether this vendor info is empty
-	 *
-	 * @return boolean
-	 */
-	public function isEmpty()
-	{
-	 return empty($this->parameters);
 	}
 
 	/**

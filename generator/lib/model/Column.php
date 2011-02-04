@@ -8,12 +8,12 @@
  * @license    MIT License
  */
 
-require_once dirname(__FILE__) . '/XMLElement.php';
-require_once dirname(__FILE__) . '/../exception/EngineException.php';
-require_once dirname(__FILE__) . '/PropelTypes.php';
-require_once dirname(__FILE__) . '/Inheritance.php';
-require_once dirname(__FILE__) . '/Domain.php';
-require_once dirname(__FILE__) . '/ColumnDefaultValue.php';
+require_once 'model/XMLElement.php';
+require_once 'exception/EngineException.php';
+require_once 'model/PropelTypes.php';
+require_once 'model/Inheritance.php';
+require_once 'model/Domain.php';
+require_once 'model/ColumnDefaultValue.php';
 
 /**
  * A Class for holding data about a column used in an Application.
@@ -25,7 +25,7 @@ require_once dirname(__FILE__) . '/ColumnDefaultValue.php';
  * @author     Daniel Rall <dlr@finemaltcoding.com> (Torque)
  * @author     Byron Foster <byron_foster@yahoo.com> (Torque)
  * @author     Bernd Goldschmidt <bgoldschmidt@rapidsoft.de>
- * @version    $Revision: 2180 $
+ * @version    $Revision: 2065 $
  * @package    propel.generator.model
  */
 class Column extends XMLElement
@@ -89,11 +89,6 @@ class Column extends XMLElement
 
 	/** class name to do input validation on this column */
 	private $inputValidator = null;
-	
-	/**
-	 * @var stores the possible values of an ENUM column
-	 */
-	protected $valueSet = array();
 
 	/**
 	 * @var				 Domain The domain object associated with this Column.
@@ -115,9 +110,9 @@ class Column extends XMLElement
 	 *
 	 * @param			 columns Either a list of <code>Column</code> objects, or
 	 * a list of <code>String</code> objects with column names.
-	 * @deprecated Use the Platform::getColumnListDDL() method instead
+	 * @deprecated Use the DDLBuilder->getColumnList() method instead; this will be removed in 1.3
 	 */
-	public static function makeList($columns, PropelPlatformInterface $platform)
+	public static function makeList($columns, Platform $platform)
 	{
 		$list = array();
 		foreach ($columns as $col) {
@@ -142,19 +137,9 @@ class Column extends XMLElement
 			} else {
 				$type = strtoupper($this->getAttribute("type"));
 				if ($type) {
-					if ($platform = $this->getPlatform()) {
-						$this->getDomain()->copy($this->getPlatform()->getDomainForType($type));
-					} else {
-						// no platform - probably during tests
-						$this->setDomain(new Domain($type));
-					}
+					$this->getDomain()->copy($this->getPlatform()->getDomainForType($type));
 				} else {
-					if ($platform = $this->getPlatform()) {
-						$this->getDomain()->copy($this->getPlatform()->getDomainForType(self::DEFAULT_TYPE));
-					} else {
-						// no platform - probably during tests
-						$this->setDomain(new Domain(self::DEFAULT_TYPE));
-					}
+					$this->getDomain()->copy($this->getPlatform()->getDomainForType(self::DEFAULT_TYPE));
 				}
 			}
 
@@ -171,7 +156,7 @@ class Column extends XMLElement
 			}
 
 			// Accessor visibility
-			if ($this->getAttribute('accessorVisibility', null) !== null) {
+			if ($this->getAttribute('accessorVisibility', null) !==	 null) {
 				$this->setAccessorVisibility($this->getAttribute('accessorVisibility'));
 			} elseif ($this->getTable()->getAttribute('defaultAccessorVisibility', null) !== null) {
 				$this->setAccessorVisibility($this->getTable()->getAttribute('defaultAccessorVisibility'));
@@ -182,7 +167,7 @@ class Column extends XMLElement
 			}
 
 			// Mutator visibility
-			if ($this->getAttribute('mutatorVisibility', null) !== null) {
+			if ($this->getAttribute('mutatorVisibility', null) !==	null) {
 				$this->setMutatorVisibility($this->getAttribute('mutatorVisibility'));
 			} elseif ($this->getTable()->getAttribute('defaultMutatorVisibility', null) !== null) {
 				$this->setMutatorVisibility($this->getTable()->getAttribute('defaultMutatorVisibility'));
@@ -230,12 +215,6 @@ class Column extends XMLElement
 			} elseif ($this->getAttribute("defaultExpr") !== null) {
 				$this->getDomain()->setDefaultValue(new ColumnDefaultValue($this->getAttribute("defaultExpr"), ColumnDefaultValue::TYPE_EXPR));
 			}
-			
-			if ($this->getAttribute('valueSet', null) !== null) {
-				$valueSet = explode(',', $this->getAttribute("valueSet"));
-				$valueSet = array_map('trim', $valueSet);
-				$this->valueSet = $valueSet;
-			}
 
 			$this->inheritanceType = $this->getAttribute("inheritance");
 			$this->isInheritance = ($this->inheritanceType !== null
@@ -262,15 +241,6 @@ class Column extends XMLElement
 	}
 
 	/**
-	 * Sets domain for this column
-	 * @param		 Domain $domain
-	 */
-	public function setDomain(Domain $domain)
-	{
-		$this->domain = $domain;
-	}
-
-	/**
 	 * Returns table.column
 	 */
 	public function getFullyQualifiedName()
@@ -294,22 +264,6 @@ class Column extends XMLElement
 		$this->name = $newName;
 	}
 
-	/**
-	 * Determines whether a column name is plural
-	 */
-	public function isNamePlural()
-	{
-		return $this->getSingularName() != $this->name;
-	}
-	
-	/**
-	 * Gets the singular name for the column
-	 */
-	public function getSingularName()
-	{
-		return rtrim($this->name, 's');
-	}
-	
 	/**
 	 * Get the description for the Table
 	 */
@@ -789,21 +743,6 @@ class Column extends XMLElement
 		return $this->referrers;
 	}
 
-	public function hasReferrers()
-	{
-		return $this->referrers !== null;
-	}
-
-	public function hasReferrer(ForeignKey $fk)
-	{
-		return $this->hasReferrers() && in_array($fk, $this->referrers);
-	}
-	
-	public function clearReferrers()
-	{
-		$this->referrers = null;
-	}
-
 	/**
 	 * Sets the domain up for specified Propel type.
 	 *
@@ -900,33 +839,6 @@ class Column extends XMLElement
 	{
 		return PropelTypes::isTemporalType($this->getType());
 	}
-	
-	/**
-	 * Utility method to know whether column is an ENUM column.
-	 * @return		 boolean
-	 */
-	public function isEnumType()
-	{
-		return $this->getType() == PropelTypes::ENUM;
-	}
-
-	/**
-	 * Sets the list of possible values for an ENUM column
-	 * @param array 
-	 */
-	public function setValueSet($valueSet)
-	{
-		$this->valueSet = $valueSet;
-	}
-	
-	/**
-	 * Returns the list of possible values for an ENUM column
-	 * @return array 
-	 */
-	public function getValueSet()
-	{
-		return $this->valueSet;
-	}
 
 	/**
 	 * @see				 XMLElement::appendXml(DOMNode)
@@ -952,10 +864,6 @@ class Column extends XMLElement
 
 		if ($domain->getScale() !== null) {
 			$colNode->setAttribute('scale', $domain->getScale());
-		}
-
-		if ($this->description !== null) {
-			$colNode->setAttribute('description', $this->description);
 		}
 
 		if ($this->isPrimaryKey) {
@@ -1006,7 +914,7 @@ class Column extends XMLElement
 	 */
 	public function getSize()
 	{
-		return $this->domain ? $this->domain->getSize() : false;
+		return $this->domain->getSize();
 	}
 
 	/**
@@ -1046,13 +954,29 @@ class Column extends XMLElement
 	}
 
 	/**
-	 * Return a string that will give this column a default value in SQL
-	 * @deprecated use Platform::getColumnDefaultValueDDL() instead
+	 * Return a string that will give this column a default value.
 	 * @return		 string
 	 */
 	public function getDefaultSetting()
 	{
-		return $this->getPlatform()->getColumnDefaultValueDDL($this);
+		$dflt = "";
+		$defaultValue = $this->getDefaultValue();
+		if ($defaultValue !== null) {
+			$dflt .= "default ";
+
+			if ($this->getDefaultValue()->isExpression()) {
+				$dflt .= $this->getDefaultValue()->getValue();
+			} else {
+				if ($this->isTextType()) {
+					$dflt .= $this->getPlatform()->quote($defaultValue->getValue());
+				} elseif ($this->getType() == PropelTypes::BOOLEAN) {
+					$dflt .= $this->getPlatform()->getBooleanString($defaultValue->getValue());
+				} else {
+					$dflt .= $defaultValue->getValue();
+				}
+			}
+		}
+		return $dflt;
 	}
 
 	/**
@@ -1080,17 +1004,10 @@ class Column extends XMLElement
 	
 	/**
 	 * Set a string that will give this column a default value.
-	 * 
-	 * @param ColumnDefaultValue|scalar column default value
 	 */
 	public function setDefaultValue($def)
 	{
-		if (!$def instanceof ColumnDefaultValue) {
-			$def = new ColumnDefaultValue($def, ColumnDefaultValue::TYPE_VALUE);
-		}
 		$this->domain->setDefaultValue($def);
-		
-		return $this;
 	}
 
 	/**
@@ -1145,17 +1062,12 @@ class Column extends XMLElement
 	 */
 	public function getAutoIncrementString()
 	{
-		if ($this->isAutoIncrement() && IDMethod::NATIVE === $this->getTable()->getIdMethod()) {
+		if ($this->isAutoIncrement()&& IDMethod::NATIVE === $this->getTable()->getIdMethod()) {
 			return $this->getPlatform()->getAutoIncrement();
 		} elseif ($this->isAutoIncrement()) {
-			throw new EngineException(sprintf(
-				'You have specified autoIncrement for column "%s", but you have not specified idMethod="native" for table "%s".',
-				$this->name,
-				$this->getTable()->getName()
-			));
+			throw new EngineException("You have specified autoIncrement for column '" . $this->name . "' but you have not specified idMethod=\"native\" for table '" . $this->getTable()->getName() . "'.");
 		}
-		
-		return '';
+		return "";
 	}
 
 	/**
@@ -1250,6 +1162,26 @@ class Column extends XMLElement
 		return $this->getTable()->getDatabase()->getPlatform();
 	}
 
+	/**
+	 *
+	 * @return		 string
+	 * @deprecated Use DDLBuilder->getColumnDDL() instead; this will be removed in 1.3
+	 */
+	public function getSqlString()
+	{
+		$sb = "";
+		$sb .= $this->getPlatform()->quoteIdentifier($this->getName()) . " ";
+		$sb .= $this->getDomain()->getSqlType();
+		if ($this->getPlatform()->hasSize($this->getDomain()->getSqlType())) {
+			$sb .= $this->getDomain()->printSize();
+		}
+		$sb .= " ";
+		$sb .= $this->getDefaultSetting() . " ";
+		$sb .= $this->getNotNullString() . " ";
+		$sb .= $this->getAutoIncrementString();
+		return trim($sb);
+	}
+	
 	public static function generatePhpName($name, $phpNamingMethod = PhpNameGenerator::CONV_METHOD_CLEAN, $namePrefix = null) {
 		return NameFactory::generateName(NameFactory::PHP_GENERATOR, array($name, $phpNamingMethod, $namePrefix));
 	}
