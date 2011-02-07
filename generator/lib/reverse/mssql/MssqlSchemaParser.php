@@ -14,7 +14,7 @@ require_once 'reverse/BaseSchemaParser.php';
  * Microsoft SQL Server database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2135 $
+ * @version    $Revision: 2189 $
  * @package    propel.generator.reverse.mssql
  */
 class MssqlSchemaParser extends BaseSchemaParser
@@ -197,7 +197,7 @@ class MssqlSchemaParser extends BaseSchemaParser
 	 */
 	protected function addIndexes(Table $table)
 	{
-		$stmt = $this->dbh->query("sp_indexes_rowset " . $table->getName());
+		$stmt = $this->dbh->query("sp_indexes_rowset '" . $table->getName() . "'");
 
 		$indexes = array();
 		while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
