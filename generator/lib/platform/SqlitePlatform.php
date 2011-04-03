@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once 'platform/DefaultPlatform.php';
+require_once dirname(__FILE__) . '/DefaultPlatform.php';
 
 /**
- * SQLite Platform implementation.
+ * SQLite PropelPlatformInterface implementation.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 1612 $
+ * @version    $Revision: 2168 $
  * @package    propel.generator.platform
  */
 class SqlitePlatform extends DefaultPlatform
@@ -34,29 +34,94 @@ class SqlitePlatform extends DefaultPlatform
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, "LONGBLOB"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::BLOB, "LONGBLOB"));
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::CLOB, "LONGTEXT"));
+		$this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, "MEDIUMTEXT"));
+		$this->setSchemaDomainMapping(new Domain(PropelTypes::PHP_ARRAY, "MEDIUMTEXT"));
+		$this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, "TINYINT"));
 	}
 
 	/**
-	 * @see        Platform#getAutoIncrement()
 	 * @link       http://www.sqlite.org/autoinc.html
 	 */
 	public function getAutoIncrement()
 	{
-
 		return "PRIMARY KEY";
 	}
 
-	/**
-	 * @see        Platform#getMaxColumnNameLength()
-	 */
 	public function getMaxColumnNameLength()
 	{
 		return 1024;
 	}
 
-	/**
-	 * @see        Platform#hasSize(String)
-	 */
+	public function getAddTableDDL(Table $table)
+	{
+		$tableDescription = $table->hasDescription() ? $this->getCommentLineDDL($table->getDescription()) : '';
+
+		$lines = array();
+
+		foreach ($table->getColumns() as $column) {
+			$lines[] = $this->getColumnDDL($column);
+		}
+
+		if ($table->hasPrimaryKey() && count($table->getPrimaryKey()) > 1) {
+			$lines[] = $this->getPrimaryKeyDDL($table);
+		}
+
+		foreach ($table->getUnices() as $unique) {
+			$lines[] = $this->getUniqueDDL($unique);
+		}
+
+		$sep = ",
+	";
+
+		$pattern = "
+%sCREATE TABLE %s
+(
+	%s
+);
+";
+		return sprintf($pattern,
+			$tableDescription,
+			$this->quoteIdentifier($table->getName()),
+			implode($sep, $lines)
+		);
+	}
+
+	public function getDropPrimaryKeyDDL(Table $table)
+	{
+		// FIXME: not supported by SQLite
+		return '';
+	}
+	
+	public function getAddPrimaryKeyDDL(Table $table)
+	{
+		// FIXME: not supported by SQLite
+		return '';
+	}
+	
+	public function getAddForeignKeyDDL(ForeignKey $fk)
+	{
+		// no need for an alter table to return comments
+		return $this->getForeignKeyDDL($fk);
+	}
+
+	public function getDropForeignKeyDDL(ForeignKey $fk)
+	{
+		return '';
+	}
+	
+	public function getForeignKeyDDL(ForeignKey $fk)
+	{
+		$pattern = "
+-- SQLite does not support foreign keys; this is just for reference
+-- FOREIGN KEY (%s) REFERENCES %s (%s)
+";
+		return sprintf($pattern, 
+			$this->getColumnListDDL($fk->getLocalColumns()),
+			$fk->getForeignTableName(),
+			$this->getColumnListDDL($fk->getForeignColumns())
+		);
+	}
+
 	public function hasSize($sqlType) {
 		return !("MEDIUMTEXT" == $sqlType || "LONGTEXT" == $sqlType
 				|| "BLOB" == $sqlType || "MEDIUMBLOB" == $sqlType
@@ -77,11 +142,8 @@ class SqlitePlatform extends DefaultPlatform
 		}
 	}
 
-	/**
-	 * @see        Platform::quoteIdentifier()
-	 */
 	public function quoteIdentifier($text)
 	{
-		return '[' . $text . ']';
+		return $this->isIdentifierQuotingEnabled ? '[' . $text . ']' : $text;
 	}
 }

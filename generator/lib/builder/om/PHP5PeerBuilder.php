@@ -8,7 +8,8 @@
  * @license    MIT License
  */
 
-require_once 'builder/om/PeerBuilder.php';
+require_once dirname(__FILE__) . '/PeerBuilder.php';
+require_once dirname(__FILE__) . '/ClassTools.php';
 
 /**
  * Generates a PHP5 base Peer class for user object model (OM).
@@ -210,11 +211,20 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 
 	/** The number of lazy-loaded columns. */
 	const NUM_LAZY_LOAD_COLUMNS = ".$this->getTable()->getNumLazyLoadColumns().";
+
+	/** The number of columns to hydrate (NUM_COLUMNS - NUM_LAZY_LOAD_COLUMNS) */
+	const NUM_HYDRATE_COLUMNS = ". ($this->getTable()->getNumColumns() - $this->getTable()->getNumLazyLoadColumns()) .";
 ";
 		$this->addColumnNameConstants($script);
 		$this->addInheritanceColumnConstants($script);
-
+		if ($this->getTable()->hasEnumColumns()) {
+			$this->addEnumColumnConstants($script);
+		}
+		
 		$script .= "
+	/** The default string format for model objects of the related table **/
+	const DEFAULT_STRING_FORMAT = '" . $this->getTable()->getDefaultStringFormat() . "';
+	
 	/**
 	 * An identiy map to hold any loaded instances of ".$this->getObjectClassname()." objects.
 	 * This must be public so that other peer classes can access this when hydrating from JOIN
@@ -226,10 +236,15 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 
 		// apply behaviors
-    $this->applyBehaviorModifier('staticAttributes', $script, "	");
+		$this->applyBehaviorModifier('staticConstants', $script, "	");
+		$this->applyBehaviorModifier('staticAttributes', $script, "	");
 		
 		$this->addFieldNamesAttribute($script);
 		$this->addFieldKeysAttribute($script);
+
+		if ($this->getTable()->hasEnumColumns()) {
+			$this->addEnumColumnAttributes($script);
+		}
 	}
 
 	/**
@@ -240,12 +255,37 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 	{
 		foreach ($this->getTable()->getColumns() as $col) {
 			$script .= "
-	/** the column name for the ".strtoupper($col->getName()) ." field */
+	/** the column name for the " . strtoupper($col->getName()) ." field */
 	const ".$this->getColumnName($col) ." = '" . $this->getTable()->getName() . ".".strtoupper($col->getName())."';
 ";
 		} // foreach
 	}
 
+	/**
+	 * Adds the valueSet constants for ENUM columns.
+	 * @param      string &$script The script will be modified in this method.
+	 */
+	protected function addEnumColumnConstants(&$script)
+	{
+		foreach ($this->getTable()->getColumns() as $col) {
+			if ($col->isEnumType()) {
+				$script .= "
+	/** The enumerated values for the " . strtoupper($col->getName()) . " field */";
+				foreach ($col->getValueSet() as $value) {
+					$script .= "
+	const " . $this->getColumnName($col) . '_' . $this->getEnumValueConstant($value) . " = '" . $value . "';";
+				}
+				$script .= "
+";
+			}
+		}
+	}
+	
+	protected function getEnumValueConstant($value)
+	{
+		return strtoupper(preg_replace('/[^a-zA-Z0-9_\x7f-\xff]/', '_', $value));
+	}
+	
 	protected function addFieldNamesAttribute(&$script)
 	{
 		$table = $this->getTable();
@@ -259,7 +299,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 	 * first dimension keys are the type constants
 	 * e.g. self::\$fieldNames[self::TYPE_PHPNAME][0] = 'Id'
 	 */
-	private static \$fieldNames = array (
+	protected static \$fieldNames = array (
 		BasePeer::TYPE_PHPNAME => array (";
 		foreach ($tableColumns as $col) {
 			$script .= "'".$col->getPhpName()."', ";
@@ -307,7 +347,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 	 * first dimension keys are the type constants
 	 * e.g. self::\$fieldNames[BasePeer::TYPE_PHPNAME]['Id'] = 0
 	 */
-	private static \$fieldKeys = array (
+	protected static \$fieldKeys = array (
 		BasePeer::TYPE_PHPNAME => array (";
 		foreach ($tableColumns as $num => $col) {
 			$script .= "'".$col->getPhpName()."' => $num, ";
@@ -342,6 +382,31 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 	} // addFielKeysAttribute
 
+	/**
+	 * Adds the valueSet attributes for ENUM columns.
+	 * @param      string &$script The script will be modified in this method.
+	 */
+	protected function addEnumColumnAttributes(&$script)
+	{
+		$script .= "
+	/** The enumerated values for this table */
+	protected static \$enumValueSets = array(";
+		foreach ($this->getTable()->getColumns() as $col) {
+			if ($col->isEnumType()) {
+				$script .= "
+		self::" . $this->getColumnName($col) ." => array(
+";
+				foreach ($col->getValueSet() as $value) {
+					$script .= "			" . $this->getStubPeerBuilder()->getClassname() . '::' . $this->getColumnName($col) . '_' . $this->getEnumValueConstant($value) . ",
+";
+				}
+				$script .= "		),";
+			}
+		}
+		$script .= "
+	);
+";
+	}
 
 	protected function addGetFieldNames(&$script)
 	{
@@ -391,6 +456,46 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 ";
 	} // addTranslateFieldName()
 
+	/**
+	 * Adds the getValueSets() method.
+	 * @param      string &$script The script will be modified in this method.
+	 */
+	protected function addGetValueSets(&$script)
+	{
+		$this->declareClassFromBuilder($this->getTableMapBuilder());
+		$callingClass = $this->getStubPeerBuilder()->getClassname();
+		$script .= "
+	/**
+	 * Gets the list of values for all ENUM columns
+	 * @return array
+	 */
+	public static function getValueSets()
+	{
+	  return {$callingClass}::\$enumValueSets;
+	}
+";
+	}
+
+	/**
+	 * Adds the getValueSet() method.
+	 * @param      string &$script The script will be modified in this method.
+	 */
+	protected function addGetValueSet(&$script)
+	{
+		$this->declareClassFromBuilder($this->getTableMapBuilder());
+		$script .= "
+	/**
+	 * Gets the list of values for an ENUM column
+	 * @return array list of possible values for the column
+	 */
+	public static function getValueSet(\$colname)
+	{
+		\$valueSets = self::getValueSets();
+		return \$valueSets[\$colname];
+	}
+";
+	}
+	
 	/**
 	 * Adds the buildTableMap() method.
 	 * @param      string &$script The script will be modified in this method.
@@ -719,7 +824,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 	 * @param      ".$this->getObjectClassname()." \$value A ".$this->getObjectClassname()." object.
 	 * @param      string \$key (optional) key to use for instance map (for performance boost if key was already calculated externally).
 	 */
-	public static function addInstanceToPool(".$this->getObjectClassname()." \$obj, \$key = null)
+	public static function addInstanceToPool(\$obj, \$key = null)
 	{
 		if (Propel::isInstancePoolingEnabled()) {
 			if (\$key === null) {";
@@ -1067,14 +1172,14 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 			// We no longer rehydrate the object, since this can cause data loss.
 			// See http://www.propelorm.org/ticket/509
 			// \$obj->hydrate(\$row, \$startcol, true); // rehydrate
-			\$col = \$startcol + " . $this->getPeerClassname() . "::NUM_COLUMNS;";
+			\$col = \$startcol + " . $this->getPeerClassname() . "::NUM_HYDRATE_COLUMNS;";
 		if ($table->isAbstract()) {
 			$script .= "
 		} elseif (null == \$key) {
 			// empty resultset, probably from a left join
 			// since this table is abstract, we can't hydrate an empty object
 			\$obj = null;
-			\$col = \$startcol + " . $this->getPeerClassname() . "::NUM_COLUMNS;";
+			\$col = \$startcol + " . $this->getPeerClassname() . "::NUM_HYDRATE_COLUMNS;";
 		}
 		$script .= "
 		} else {";
@@ -1713,7 +1818,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 	 *
 	 * @return     mixed TRUE if all columns are valid or the error message of the first invalid column.
 	 */
-	public static function doValidate(".$this->getObjectClassname()." \$obj, \$cols = null)
+	public static function doValidate(\$obj, \$cols = null)
 	{
 		\$columns = array();
 
@@ -2040,7 +2145,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 		}
 
 		".$this->getPeerClassname()."::addSelectColumns(\$criteria);
-		\$startcol = (".$this->getPeerClassname()."::NUM_COLUMNS - ".$this->getPeerClassname()."::NUM_LAZY_LOAD_COLUMNS);
+		\$startcol = ".$this->getPeerClassname()."::NUM_HYDRATE_COLUMNS;
 		".$joinedTablePeerBuilder->getPeerClassname()."::addSelectColumns(\$criteria);
 ";
 
@@ -2246,7 +2351,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 		}
 
 		".$this->getPeerClassname()."::addSelectColumns(\$criteria);
-		\$startcol2 = (".$this->getPeerClassname()."::NUM_COLUMNS - ".$this->getPeerClassname()."::NUM_LAZY_LOAD_COLUMNS);
+		\$startcol2 = ".$this->getPeerClassname()."::NUM_HYDRATE_COLUMNS;
 ";
 		$index = 2;
 		foreach ($table->getForeignKeys() as $fk) {
@@ -2262,7 +2367,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 
 				$script .= "
 		".$joinedTablePeerBuilder->getPeerClassname()."::addSelectColumns(\$criteria);
-		\$startcol$new_index = \$startcol$index + (".$joinedTablePeerBuilder->getPeerClassname()."::NUM_COLUMNS - ".$joinedTablePeerBuilder->getPeerClassname()."::NUM_LAZY_LOAD_COLUMNS);
+		\$startcol$new_index = \$startcol$index + ".$joinedTablePeerBuilder->getPeerClassname()."::NUM_HYDRATE_COLUMNS;
 ";
 				$index = $new_index;
 
@@ -2512,7 +2617,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 		}
 
 		".$this->getPeerClassname()."::addSelectColumns(\$criteria);
-		\$startcol2 = (".$this->getPeerClassname()."::NUM_COLUMNS - ".$this->getPeerClassname()."::NUM_LAZY_LOAD_COLUMNS);
+		\$startcol2 = ".$this->getPeerClassname()."::NUM_HYDRATE_COLUMNS;
 ";
 			$index = 2;
 			foreach ($table->getForeignKeys() as $subfk) {
@@ -2527,7 +2632,7 @@ abstract class ".$this->getClassname(). $extendingPeerClass . " {
 						$new_index = $index + 1;
 						$script .= "
 		".$joinTablePeerBuilder->getPeerClassname()."::addSelectColumns(\$criteria);
-		\$startcol$new_index = \$startcol$index + (".$joinTablePeerBuilder->getPeerClassname()."::NUM_COLUMNS - ".$joinTablePeerBuilder->getPeerClassname()."::NUM_LAZY_LOAD_COLUMNS);
+		\$startcol$new_index = \$startcol$index + ".$joinTablePeerBuilder->getPeerClassname()."::NUM_HYDRATE_COLUMNS;
 ";
 						$index = $new_index;
 					} // if joinClassName not excludeClassName

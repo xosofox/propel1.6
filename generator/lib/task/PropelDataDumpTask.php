@@ -11,8 +11,7 @@
 /**
  * Dumps the contenst of selected databases to XML data dump file.
  *
- * The generated XML files can have corresponding DTD files generated using the
- * PropelDataDTDTask.  The results of the data dump can be converted to SQL using
+ * The results of the data dump can be converted to SQL using
  * the PropelDataSQLTask class.
  *
  * The database may be specified (via 'databaseName' attribute) if you only want to dump
@@ -23,7 +22,7 @@
  * @author     Fedor Karpelevitch <fedor.karpelevitch@home.com> (Torque)
  * @author     Jason van Zyl <jvanzyl@zenplex.com> (Torque)
  * @author     Daniel Rall <dlr@finemaltcoding.com> (Torque)
- * @version    $Revision: 1612 $
+ * @version    $Revision: 1919 $
  * @package    propel.generator.task
  */
 class PropelDataDumpTask extends AbstractPropelDataModelTask
@@ -305,10 +304,10 @@ class PropelDataDumpTask extends AbstractPropelDataModelTask
 	/**
 	 * Gets PDOStatement of query to fetch all data from a table.
 	 * @param      string $tableName
-	 * @param      Platform $platform
+	 * @param      PropelPlatformInterface $platform
 	 * @return     PDOStatement
 	 */
-	private function getTableDataStmt($tableName, Platform $platform)
+	private function getTableDataStmt($tableName, PropelPlatformInterface $platform)
 	{
 		return $this->conn->query("SELECT * FROM " . $platform->quoteIdentifier( $tableName ) );
 	}
@@ -322,7 +321,7 @@ class PropelDataDumpTask extends AbstractPropelDataModelTask
 	{
 		$doc = new DOMDocument('1.0', 'utf-8');
 		$doc->formatOutput = true; // pretty printing
-		$doc->appendChild($doc->createComment("Created by data/dump/Control.tpl template."));
+		$doc->appendChild($doc->createComment("Created by PropelDataDumpTask."));
 
 		$dsNode = $doc->createElement("dataset");
 		$dsNode->setAttribute("name", "all");

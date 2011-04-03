@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once 'reverse/SchemaParser.php';
+require_once dirname(__FILE__) . '/SchemaParser.php';
 
 /**
  * Base class for reverse engineering a database schema.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 1612 $
+ * @version    $Revision: 2008 $
  * @package    propel.generator.reverse
  */
 abstract class BaseSchemaParser implements SchemaParser
@@ -53,7 +53,16 @@ abstract class BaseSchemaParser implements SchemaParser
 	 * @var        array
 	 */
 	protected $reverseTypeMap;
-
+	
+	/**
+	 * Name of the propel migration table - to be ignored in reverse
+	 *
+	 * @var string
+	 */
+	protected $migrationTable = 'propel_migration';
+	
+	protected $platform;
+	
 	/**
 	 * @param      PDO $dbh Optional database connection
 	 */
@@ -81,6 +90,27 @@ abstract class BaseSchemaParser implements SchemaParser
 		return $this->dbh;
 	}
 
+	/**
+	 * Setter for the migrationTable property
+	 *
+	 * @param string $migrationTable
+	 */
+	public function setMigrationTable($migrationTable)
+	{
+		$this->migrationTable = $migrationTable;
+	}
+
+	/**
+	 * Getter for the migrationTable property
+	 *
+	 * @return string
+	 */
+	public function getMigrationTable()
+	{
+		return $this->migrationTable;
+	}
+
+	
 	/**
 	 * Pushes a message onto the stack of warnings.
 	 *
@@ -180,9 +210,23 @@ abstract class BaseSchemaParser implements SchemaParser
 	 */
 	protected function getNewVendorInfoObject(array $params)
 	{
-		$type = $this->getGeneratorConfig()->getConfiguredPlatform()->getDatabaseType();
+		$type = $this->getPlatform()->getDatabaseType();
 		$vi = new VendorInfo($type);
 		$vi->setParameters($params);
 		return $vi;
+	}
+	
+	public function setPlatform($platform)
+	{
+	  $this->platform = $platform;
+	}
+	
+	public function getPlatform()
+	{
+	  if (null === $this->platform)
+	  {
+	    $this->platform = $this->getGeneratorConfig()->getConfiguredPlatform();
+	  }
+	  return $this->platform;
 	}
 }

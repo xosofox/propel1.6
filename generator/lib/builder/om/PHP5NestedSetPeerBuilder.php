@@ -8,16 +8,13 @@
  * @license    MIT License
  */
 
-require_once 'builder/om/PeerBuilder.php';
+require_once dirname(__FILE__) . '/PeerBuilder.php';
 
 /**
  * Generates a PHP5 tree nested set Peer class for user object model (OM).
  *
  * This class produces the base tree nested set object class (e.g. BaseMyTable) which contains all
  * the custom-built accessor and setter methods.
- *
- * This class replaces the Node.tpl, with the intent of being easier for users
- * to customize (through extending & overriding).
  *
  * @author     heltem <heltem@o2php.com>
  * @package    propel.generator.builder.om

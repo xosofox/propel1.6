@@ -78,7 +78,7 @@ CREATE TABLE `x`.`book`
 	CONSTRAINT `book_FK_1`
 		FOREIGN KEY (`author_id`)
 		REFERENCES `y`.`author` (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 -- ---------------------------------------------------------------------
 -- y.author
@@ -92,7 +92,7 @@ CREATE TABLE `y`.`author`
 	`first_name` VARCHAR(100),
 	`last_name` VARCHAR(100),
 	PRIMARY KEY (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 -- ---------------------------------------------------------------------
 -- x.book_summary
@@ -111,7 +111,7 @@ CREATE TABLE `x`.`book_summary`
 		FOREIGN KEY (`book_id`)
 		REFERENCES `x`.`book` (`id`)
 		ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 # This restores the fkey checks, after having unset them earlier
 SET FOREIGN_KEY_CHECKS = 1;
@@ -149,7 +149,7 @@ CREATE TABLE `book`
 	CONSTRAINT `book_FK_1`
 		FOREIGN KEY (`author_id`)
 		REFERENCES `author` (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 -- ---------------------------------------------------------------------
 -- author
@@ -163,7 +163,7 @@ CREATE TABLE `author`
 	`first_name` VARCHAR(100),
 	`last_name` VARCHAR(100),
 	PRIMARY KEY (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 # This restores the fkey checks, after having unset them earlier
 SET FOREIGN_KEY_CHECKS = 1;
@@ -201,7 +201,7 @@ CREATE TABLE `foo`
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	`bar` VARCHAR(255) NOT NULL,
 	PRIMARY KEY (`id`)
-) ENGINE=InnoDB COMMENT='This is foo table';
+) ENGINE=MyISAM COMMENT='This is foo table';
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -219,7 +219,7 @@ CREATE TABLE `foo`
 	`bar` INTEGER NOT NULL,
 	`baz` VARCHAR(255) NOT NULL,
 	PRIMARY KEY (`foo`,`bar`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -237,7 +237,7 @@ CREATE TABLE `foo`
 	`bar` INTEGER,
 	PRIMARY KEY (`id`),
 	UNIQUE INDEX `foo_U_1` (`bar`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -263,7 +263,7 @@ CREATE TABLE `foo`
 	`bar` INTEGER,
 	PRIMARY KEY (`id`),
 	INDEX `foo_I_1` (`bar`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -295,7 +295,36 @@ CREATE TABLE `foo`
 	CONSTRAINT `foo_FK_1`
 		FOREIGN KEY (`bar_id`)
 		REFERENCES `bar` (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
+";
+		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
+	}
+	
+	public function testGetAddTableDDLForeignKeySkipSql()
+	{
+		$schema = <<<EOF
+<database name="test">
+	<table name="foo">
+		<column name="id" primaryKey="true" type="INTEGER" autoIncrement="true" />
+		<column name="bar_id" type="INTEGER" />
+		<foreign-key foreignTable="bar" skipSql="true">
+			<reference local="bar_id" foreign="id" />
+		</foreign-key>
+	</table>
+	<table name="bar">
+		<column name="id" primaryKey="true" type="INTEGER" autoIncrement="true" />
+	</table>
+</database>
+EOF;
+		$table = $this->getTableFromSchema($schema);
+		$expected = "
+CREATE TABLE `foo`
+(
+	`id` INTEGER NOT NULL AUTO_INCREMENT,
+	`bar_id` INTEGER,
+	PRIMARY KEY (`id`),
+	INDEX `foo_FI_1` (`bar_id`)
+) ENGINE=MyISAM;
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -332,7 +361,7 @@ CREATE TABLE `foo`
 	<table name="foo">
 		<column name="id" primaryKey="true" type="INTEGER" autoIncrement="true" />
 		<vendor type="mysql">
-			<parameter name="Engine" value="MyISAM"/>
+			<parameter name="Engine" value="InnoDB"/>
 			<parameter name="Charset" value="utf8"/>
 		</vendor>
 	</table>
@@ -344,7 +373,7 @@ CREATE TABLE `foo`
 (
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARACTER SET='utf8';
+) ENGINE=InnoDB CHARACTER SET='utf8';
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -361,7 +390,7 @@ CREATE TABLE `Woopah`.`foo`
 	`id` INTEGER NOT NULL AUTO_INCREMENT,
 	`bar` INTEGER,
 	PRIMARY KEY (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getAddTableDDL($table));
 	}
@@ -595,7 +624,7 @@ ALTER TABLE `foo` ADD CONSTRAINT `foo_baz_FK`
 	REFERENCES `baz` (`id`)
 	ON DELETE SET NULL;
 ";
-		$this->assertEquals($expected, $this->getPLatform()->getAddForeignKeysDDL($table));
+		$this->assertEquals($expected, $this->getPlatform()->getAddForeignKeysDDL($table));
 	}
 	
 	/**
@@ -609,9 +638,18 @@ ALTER TABLE `foo` ADD CONSTRAINT `foo_bar_FK`
 	REFERENCES `bar` (`id`)
 	ON DELETE CASCADE;
 ";
-		$this->assertEquals($expected, $this->getPLatform()->getAddForeignKeyDDL($fk));
+		$this->assertEquals($expected, $this->getPlatform()->getAddForeignKeyDDL($fk));
 	}
 
+	/**
+	 * @dataProvider providerForTestGetForeignKeySkipSqlDDL
+	 */
+	public function testGetAddForeignKeySkipSqlDDL($fk)
+	{
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getAddForeignKeyDDL($fk));
+	}
+	
 	/**
 	 * @dataProvider providerForTestGetForeignKeyDDL
 	 */
@@ -621,6 +659,15 @@ ALTER TABLE `foo` ADD CONSTRAINT `foo_bar_FK`
 ALTER TABLE `foo` DROP FOREIGN KEY `foo_bar_FK`;
 ";
 		$this->assertEquals($expected, $this->getPLatform()->getDropForeignKeyDDL($fk));
+	}
+
+	/**
+	 * @dataProvider providerForTestGetForeignKeySkipSqlDDL
+	 */
+	public function testGetDropForeignKeySkipSqlDDL($fk)
+	{
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getDropForeignKeyDDL($fk));
 	}
 	
 	/**
@@ -633,6 +680,15 @@ ALTER TABLE `foo` DROP FOREIGN KEY `foo_bar_FK`;
 	REFERENCES `bar` (`id`)
 	ON DELETE CASCADE";
 		$this->assertEquals($expected, $this->getPLatform()->getForeignKeyDDL($fk));
+	}
+
+	/**
+	 * @dataProvider providerForTestGetForeignKeySkipSqlDDL
+	 */
+	public function testGetForeignKeySkipSqlDDL($fk)
+	{
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getForeignKeyDDL($fk));
 	}
 	
 	public function testGetCommentBlockDDL()

@@ -58,7 +58,7 @@ CREATE TABLE `foo5`
 	`lkdjfsh` INTEGER,
 	`dfgdsgf` TEXT,
 	PRIMARY KEY (`id`)
-) ENGINE=InnoDB;
+) ENGINE=MyISAM;
 
 # This restores the fkey checks, after having unset them earlier
 SET FOREIGN_KEY_CHECKS = 1;
@@ -180,6 +180,34 @@ ALTER TABLE `foo1` ADD CONSTRAINT `foo1_FK_2`
 	REFERENCES `foo2` (`bar`,`id`);
 ";
 		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff));
+	}
+
+	/**
+	 * @dataProvider providerForTestGetModifyTableForeignKeysSkipSqlDDL
+	 */
+	public function testGetModifyTableForeignKeysSkipSqlDDL($tableDiff)
+	{
+		$expected = "
+ALTER TABLE `foo1` DROP FOREIGN KEY `foo1_FK_1`;
+";
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff));
+		$expected = "
+ALTER TABLE `foo1` ADD CONSTRAINT `foo1_FK_1`
+	FOREIGN KEY (`bar`)
+	REFERENCES `foo2` (`bar`);
+";
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff->getReverseDiff()));
+	}
+
+	/**
+	 * @dataProvider providerForTestGetModifyTableForeignKeysSkipSql2DDL
+	 */
+	public function testGetModifyTableForeignKeysSkipSql2DDL($tableDiff)
+	{
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff));
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff->getReverseDiff()));
 	}
 	
 	/**

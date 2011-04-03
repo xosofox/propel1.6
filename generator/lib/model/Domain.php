@@ -8,14 +8,14 @@
  * @license    MIT License
  */
 
-require_once 'model/XMLElement.php';
+require_once dirname(__FILE__) . '/XMLElement.php';
 
 /**
  * A class for holding data about a domain used in the schema.
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 1612 $
+ * @version    $Revision: 1834 $
  * @package    propel.generator.model
  */
 class Domain extends XMLElement

@@ -12,7 +12,7 @@
  * Speeds up queries on a model by caching the query
  *
  * @author     François Zaninotto
- * @version    $Revision: 2067 $
+ * @version    $Revision: 2232 $
  * @package    propel.generator.behavior.cacheable
  */
 class QueryCacheBehavior extends Behavior
@@ -167,9 +167,11 @@ protected function getSelectStatement(\$con = null)
 		\$con = Propel::getConnection(" . $this->peerClassname ."::DATABASE_NAME, Propel::CONNECTION_READ);
 	}
 	
-	if (!\$this->hasSelectClause()) {
+	if (!\$this->hasSelectClause() && !\$this->getPrimaryCriteria()) {
 		\$this->addSelfSelectColumns();
 	}
+	
+	\$this->configureSelectColumns();
 	
 	\$con->beginTransaction();
 	try {
@@ -186,7 +188,7 @@ protected function getSelectStatement(\$con = null)
 			}
 		}
 		\$stmt = \$con->prepare(\$sql);
-		BasePeer::populateStmtValues(\$stmt, \$params, \$dbMap, \$db);
+		\$db->bindValues(\$stmt, \$params, \$dbMap);
 		\$stmt->execute();
 		\$con->commit();
 	} catch (PropelException \$e) {
@@ -222,10 +224,10 @@ protected function getCountStatement(\$con = null)
 				\$this->addSelfSelectColumns();
 			}
 			\$params = array();
-			\$needsComplexCount = \$this->getGroupByColumns() 
+			\$needsComplexCount = \$this->getGroupByColumns()
 				|| \$this->getOffset()
-				|| \$this->getLimit() 
-				|| \$this->getHaving() 
+				|| \$this->getLimit()
+				|| \$this->getHaving()
 				|| in_array(Criteria::DISTINCT, \$this->getSelectModifiers());
 			if (\$needsComplexCount) {
 				if (BasePeer::needsSelectAliases(\$this)) {
@@ -246,7 +248,7 @@ protected function getCountStatement(\$con = null)
 			}
 		}
 		\$stmt = \$con->prepare(\$sql);
-		BasePeer::populateStmtValues(\$stmt, \$params, \$dbMap, \$db);
+		\$db->bindValues(\$stmt, \$params, \$dbMap);
 		\$stmt->execute();
 		\$con->commit();
 	} catch (PropelException \$e) {

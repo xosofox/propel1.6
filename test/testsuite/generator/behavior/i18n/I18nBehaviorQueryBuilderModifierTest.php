@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../../../../../runtime/lib/Propel.php';
  * Tests for I18nBehavior class query modifier
  *
  * @author     François Zaninotto
- * @version    $Revision: 2168 $
+ * @version    $Revision: 2192 $
  * @package    generator.behavior.i18n
  */
 class I18nBehaviorQueryBuilderModifierTest extends PHPUnit_Framework_TestCase
@@ -234,6 +234,15 @@ EOF;
 			->joinWithI18n('fr_FR')
 			->findOne();
 		$this->assertEquals('fr_FR', $o2->getLocale());
+	}
+	
+	public function testJoinWithI18nAndLimitDoesNotThrowException()
+	{
+		$res = I18nBehaviorTest11Query::create()
+			->joinWithI18n('en_EN')
+			->limit(2)
+			->find();
+		$this->assertInstanceOf('PropelObjectCollection', $res);
 	}
 
 	// This is not a desired behavior, but there is no way to overcome it

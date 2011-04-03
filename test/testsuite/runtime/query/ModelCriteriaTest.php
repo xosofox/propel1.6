@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/../../../tools/helpers/bookstore/BookstoreDat
  * Test class for ModelCriteria.
  *
  * @author     Francois Zaninotto
- * @version    $Id: ModelCriteriaTest.php 2091 2010-12-13 23:01:08Z francois $
+ * @version    $Id: ModelCriteriaTest.php 2200 2011-02-20 09:20:37Z francois $
  * @package    runtime.query
  */
 class ModelCriteriaTest extends BookstoreTestBase
@@ -213,6 +213,20 @@ class ModelCriteriaTest extends BookstoreTestBase
 		$c->where($clause, $value);
 		$sql = 'SELECT  FROM `book` WHERE ' . $sql;
 		$this->assertCriteriaTranslation($c, $sql, $params, 'where() accepts a string clause');
+	}
+
+	public function testWhereUsesDefaultOperator()
+	{
+		$c = new ModelCriteria('bookstore', 'Book');
+		$c->where('Book.Id = ?', 12);
+		$c->_or();
+		$c->where('Book.Title = ?', 'foo');
+		$sql = 'SELECT  FROM `book` WHERE (book.ID = :p1 OR book.TITLE = :p2)';
+		$params = array(
+			array('table' => 'book', 'column' => 'ID', 'value' => '12'),
+			array('table' => 'book', 'column' => 'TITLE', 'value' => 'foo'),
+		);
+		$this->assertCriteriaTranslation($c, $sql, $params, 'where() uses the default operator');
 	}
 
 	public function testWhereTwiceSameColumn()

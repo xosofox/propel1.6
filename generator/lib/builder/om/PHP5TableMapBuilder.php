@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once 'builder/om/OMBuilder.php';
+require_once dirname(__FILE__) . '/OMBuilder.php';
 
 /**
  * Generates the PHP5 table map class for user object model (OM).
@@ -148,7 +148,6 @@ class ".$this->getClassname()." extends TableMap {
 
 		$table = $this->getTable();
 		$platform = $this->getPlatform();
-		$ddlBuilder = $this->getDDLBuilder();
 
 		$script .= "
 	/**
@@ -178,9 +177,9 @@ class ".$this->getClassname()." extends TableMap {
 			$imp = $params[0];
 			$script .= "
 		\$this->setPrimaryKeyMethodInfo('".$imp->getValue()."');";
-		} elseif ($table->getIdMethod() == IDMethod::NATIVE && ($platform->getNativeIdMethod() == Platform::SEQUENCE || $platform->getNativeIdMethod() == Platform::SERIAL)) {
+		} elseif ($table->getIdMethod() == IDMethod::NATIVE && ($platform->getNativeIdMethod() == PropelPlatformInterface::SEQUENCE || $platform->getNativeIdMethod() == PropelPlatformInterface::SERIAL)) {
 			$script .= "
-		\$this->setPrimaryKeyMethodInfo('".$ddlBuilder->getSequenceName()."');";
+		\$this->setPrimaryKeyMethodInfo('".$platform->getSequenceName($table)."');";
 		}
 		
 		if ($this->getTable()->getChildrenColumn()) {
@@ -216,11 +215,15 @@ class ".$this->getClassname()." extends TableMap {
 						$script .= "
 		\$this->addForeignKey('$cup', '$cfc', '".$col->getType()."', '".$fk->getForeignTableName()."', '".strtoupper($fk->getMappedForeignColumn($col->getName()))."', ".($col->isNotNull() ? 'true' : 'false').", ".$size.", $default);";
 					}
-			} else {
+				} else {
 					$script .= "
 		\$this->addColumn('$cup', '$cfc', '".$col->getType()."', ".var_export($col->isNotNull(), true).", ".$size.", $default);";
 				}
 			} // if col-is prim key
+			if ($col->isEnumType()) {
+				$script .= "
+		\$this->getColumn('$cup', false)->setValueSet(" . var_export($col->getValueSet(), true). ");";
+			}
 		} // foreach
 
 		// validators
@@ -316,7 +319,7 @@ class ".$this->getClassname()." extends TableMap {
 	{
 		return array(";
       foreach ($behaviors as $behavior)
-      {        
+      {
         $script .= "
 			'{$behavior->getName()}' => array(";
         foreach ($behavior->getParameters() as $key => $value)

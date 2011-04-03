@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once 'model/VendorInfo.php';
+require_once dirname(__FILE__) . '/VendorInfo.php';
 
 /**
  * An abstract class for elements represented by XML tags (e.g. Column, Table).
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 1963 $
+ * @version    $Revision: 2221 $
  * @package    propel.generator.model
  */
 abstract class XMLElement
@@ -146,13 +146,13 @@ abstract class XMLElement
         return $class;
       }
     }
-    // first fallback: maybe the behavior is loaded or autoloaded
+    // fallback: maybe the behavior is loaded or autoloaded
     $gen = new PhpNameGenerator();
     if(class_exists($class = $gen->generateName(array($bname, PhpNameGenerator::CONV_METHOD_PHPNAME)) . 'Behavior')) {
       return $class;
     }
-    // second fallback: use parent behavior class (mostly for unit tests)
-    return 'Behavior';
+    
+    throw new InvalidArgumentException(sprintf('Unknown behavior "%s"; make sure you configured the propel.behavior.%s.class setting in your build.properties', $bname, $bname));
   }
 
 	/**

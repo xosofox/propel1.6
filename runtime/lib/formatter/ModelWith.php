@@ -21,6 +21,7 @@ class ModelWith
 	protected $modelPeerName = '';
 	protected $isSingleTableInheritance = false;
 	protected $isAdd = false;
+	protected $isWithOneToMany = false;
 	protected $relationName = '';
 	protected $relationMethod = '';
 	protected $initMethod = '';
@@ -49,7 +50,7 @@ class ModelWith
 		$relation = $join->getRelationMap();
 		$relationName = $relation->getName();
 		if ($relation->getType() == RelationMap::ONE_TO_MANY) {
-			$this->isAdd = true;
+			$this->isAdd = $this->isWithOneToMany = true;
 			$this->relationName = $relationName . 's';
 			$this->relationMethod = 'add' . $relationName;
 			$this->initMethod = 'init' . $relationName . 's';
@@ -97,12 +98,22 @@ class ModelWith
 	
 	public function setIsAdd($isAdd)
 	{
-		$this->isAdd = $isAdd;;
+		$this->isAdd = $isAdd;
 	}
 	
 	public function isAdd()
 	{
 		return $this->isAdd;
+	}
+
+	public function setIsWithOneToMany($isWithOneToMany)
+	{
+		$this->isWithOneToMany = $isWithOneToMany;
+	}
+	
+	public function isWithOneToMany()
+	{
+		return $this->isWithOneToMany;
 	}
 	
 	public function setRelationName($relationName)

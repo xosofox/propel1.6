@@ -12,7 +12,7 @@
  * Abstract class for query formatter
  *
  * @author     Francois Zaninotto
- * @version    $Revision: 2044 $
+ * @version    $Revision: 2198 $
  * @package    propel.runtime.formatter
  */
 abstract class PropelFormatter
@@ -148,7 +148,7 @@ abstract class PropelFormatter
 	protected function isWithOneToMany()
 	{
 		foreach ($this->with as $modelWith) {
-			if ($modelWith->isAdd()) {
+			if ($modelWith->isWithOneToMany()) {
 				return true;
 			}
 		}

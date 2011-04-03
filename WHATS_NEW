@@ -360,6 +360,49 @@ echo $publisher;
 // </data>
 }}}
 
+== Easier OR in Queries ==
+
+Combining two generated filters with a logical `OR` used to be impossible in previous Propel versions - the alternative was to use `orWhere()` or `combine()`, but that meant losing all the smart defaults of generated filters.
+
+Propel 1.6 introduces a new method for Query objects: `_or()`. It just specifies that the next condition will be combined with a logical `OR` rather than an `AND`.
+
+{{{
+#!php
+<?php
+// Basic usage: _or() as a drop-in replacement for orWhere()
+$books = BookQuery::create()
+  ->where('Book.Title = ?', 'War And Peace')
+  ->_or()
+  ->where('Book.Title LIKE ?', 'War%')
+  ->find();
+// SELECT * FROM book WHERE book.TITLE = 'War And Peace' OR book.TITLE LIKE 'War%'
+
+// _or() also works on generated filters:
+$books = BookQuery::create()
+  ->filterByTitle('War And Peace')
+  ->_or()
+  ->filterByTitle(''War%')
+  ->find();
+// SELECT * FROM book WHERE book.TITLE = 'War And Peace' OR book.TITLE LIKE 'War%'
+
+// _or() also works on embedded queries
+$books = BookQuery::create()
+  ->filterByTitle('War and Peace')
+  ->_or()
+  ->useAuthorQuery()
+    ->filterByName('Leo Tolstoi')
+  ->endUse()
+  ->find();
+// SELECT book.* from book
+// INNER JOIN author ON book.AUTHOR_ID = author.ID
+// WHERE book.TITLE = 'War and Peace'
+//    OR author.NAME = 'Leo Tolstoi'
+}}}
+
+This new method is implemented in the `Criteria` class, so it also works for the old-style queries (using `add()` for conditions).
+
+'''Tip''': Since `ModelCriteria::orWhere()` is a synonym for `->_or()->where()`, it is now deprecated.
+
 == Multiple Buildtime Connections ==
 
 Propel 1.5 used the `build.properties` for buildtime connection settings. This had one major drawback: it used to be impossible to deal with several connections at buildtime, let alone several RDBMS.
@@ -469,6 +512,38 @@ $authors = AuthorQuery::create()
 }}}
 
 '''Tip''': `Criteria::addMultipleJoin()`, which allowed the same feature to some extent in previous versions, is now deprecated, since it was vulnerable in SQL injection attacks.
+
+== Model-Only Relationships ==
+
+Propel models can share relationships even though the underlying tables aren't linked by a foreign key. This ability may be of great use when using Propel on top of a legacy database.
+
+For example, a `review` table designed for a MyISAM database engine is linked to a `book` table by a simple `book_id` column:
+
+{{{
+#!xml
+<table name="review">
+  <column name="review_id" type="INTEGER" primaryKey="true" required="true"/>
+  <column name="reviewer" type="VARCHAR" size="50" required="true"/>
+  <column name="book_id" required="true" type="INTEGER"/>
+</table>
+}}}
+
+To enable a model-only relationship, add a `<foreign-key>` tag using the `skipSql` attribute, as follows:
+
+{{{
+#!xml
+<table name="review">
+  <column name="review_id" type="INTEGER" primaryKey="true" required="true"/>
+  <column name="reviewer" type="VARCHAR" size="50" required="true"/>
+  <column name="book_id" required="true" type="INTEGER"/>
+  <!-- Model-only relationship -->
+  <foreign-key foreignTable="book" onDelete="CASCADE" skipSql="true">
+    <reference local="book_id" foreign="id"/>
+  </foreign-key>
+</table>
+}}}
+
+Such a foreign key is not translated into SQL when Propel builds the table creation or table migration code. It can be seen as a "virtual foreign key". However, on the PHP side, the `Book` model actually has a one-to-many relationship with the `Review` model. The generated !ActiveRecord and !ActiveQuery classes take advantage of this relationship to offer smart getters and filters. 
 
 == Advanced Column Types ==
 
@@ -623,14 +698,17 @@ There wasn't any one-stop place to read about the abilities of the generated Act
 
 == Miscellaneous ==
 
+ * The runtime performance was tweaked on various places. Small boosts may be visible when logging is enabled, and on large batch processes.
  * A new `dbd2propel` task allows to convert [http://www.fabforce.net/dbdesigner4/ DBDesigner 4] models to a Propel schema in an easier way than the previous PHP script located under the `contrib/` folder. See the new [wiki:Documentation/1.6/DBDesigner DBDesigner2Propel chapter] for details.
  * By the way, the `contrib/` directory was removed from the core - it was not maintained anymore. Previous versions can be found in the 1.5 branch.
  * `ModelCriteria::keepQuery()` is now ON by default. This will remove bad surprises when doing a `count()` before a `find()`, and has a very limited impact on performance. You should not need to manually call `keepQuery()` anymore.
  * `ModelCriteria::with()` is now a little smarter, and therefore reduces even more the query count when hydrating one-to-many relationships.
  * Runtime Exceptions now look better in PHP 5.3, since Propel takes advantage of exception linking
  * Read queries (issued by Query termination methods `findPk()`, `find()`, `findOne()`, and `count()`) now don't create a transaction by default. Write queries still do.
+ * The !ActiveRecord and !ActiveQuery APIs have been harmonized to provide similar parameter conversion for temporal and boolean columns in generated setters and filters. For instance, you can now set a boolean column to 'yes', or filter a temporal column on the 'now' string. The phpDoc blocks of generated setters and filters were rewritten to reflect these changes, so check the generated classes for details.
  * The generated `toArray()` method for !ActiveRecord objects can now include collections, without risk of infinite recursion. Therefore `$author->toArray()` also outputs the collection of Books by the author. The dumping abilities introduced in 1.6 take advantage of this feature.
  * `PropelModelPager` now behaves more like a `PropelCollection`, thanks to the addition of `isFirst()`, `isLast()`, `isOdd()`, and `isEven()` methods. That means that it's easier to replace a `find()` by a `paginate()` as termination method for a query if there is a complex formatting.
  * Despite all that you may have read about PHP 5.3's garbage collector, memory leaks still exist on some particular circular references. Propel generates a `clearAllReferences()` method on all !ActiveRecord classes, and this method has been improved in Propel 1.6 to handle the existing leaks. Use it when you iterate on large collections of objects, or where the memory is limited.
  * For each database, Behaviors are now added to a priority queue. This allows to execute some behaviors before others, and to solve conflicts between behaviors. See [wiki:Documentation/1.6/Writing-Behavior#SpecifyingaPriorityForBehaviorExecution Hpw to Write a Behavior].
+ * Behaviors can now modify existing methods even if no hook is called in the builders, thanks to a new service class called `PropelPHPParser`. This class can remove a method, replace a method by another one, or add a new method before or after an existing one. Check the API reference for details.
  * Propel now supports tablespace definition on Oracle tables using custom `<vendor>` tags. See the [wiki:Documentation/1.6/Schema#AddingVendorInfo Schema reference] for details.

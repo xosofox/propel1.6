@@ -34,7 +34,7 @@ abstract class DataModelBuilder
 	/**
 	 * The generator config object holding build properties, etc.
 	 *
-	 * @var        GeneratorConfig
+	 * @var        GeneratorConfigInterface
 	 */
 	private $generatorConfig;
 
@@ -135,12 +135,6 @@ abstract class DataModelBuilder
 	private $nestedSetPeerBuilder;
 
 	/**
-	 * The DDL builder for current table.
-	 * @var        DDLBuilder
-	 */
-	private $ddlBuilder;
-
-	/**
 	 * The Data-SQL builder for current table.
 	 * @var        DataSQLBuilder
 	 */
@@ -152,7 +146,12 @@ abstract class DataModelBuilder
 	 */
 	private $pluralizer;
 
-
+	/**
+	 * The platform class
+	 * @var 			PropelPlatformInterface
+	 */
+	protected $platform;
+	
 	/**
 	 * Creates new instance of DataModelBuilder subclass.
 	 * @param      Table $table The Table which we are using to build [OM, DDL, etc.].
@@ -355,18 +354,6 @@ abstract class DataModelBuilder
 	}
 
 	/**
-	 * Returns new or existing ddl builder class for this table.
-	 * @return     DDLBuilder
-	 */
-	public function getDDLBuilder()
-	{
-		if (!isset($this->ddlBuilder)) {
-			$this->ddlBuilder = $this->getGeneratorConfig()->getConfiguredBuilder($this->getTable(), 'ddl');
-		}
-		return $this->ddlBuilder;
-	}
-
-	/**
 	 * Returns new or existing data sql builder class for this table.
 	 * @return     DataSQLBuilder
 	 */
@@ -527,7 +514,7 @@ abstract class DataModelBuilder
 	 *
 	 * @param      GeneratorConfig $v
 	 */
-	public function setGeneratorConfig(GeneratorConfig $v)
+	public function setGeneratorConfig(GeneratorConfigInterface $v)
 	{
 		$this->generatorConfig = $v;
 	}
@@ -552,13 +539,27 @@ abstract class DataModelBuilder
 
 	/**
 	 * Convenience method to returns the Platform class for this table (database).
-	 * @return     Platform
+	 * @return     PropelPlatformInterface
 	 */
 	public function getPlatform()
 	{
-		if ($this->getTable() && $this->getTable()->getDatabase()) {
-			return $this->getTable()->getDatabase()->getPlatform();
+		if (null === $this->platform) {
+			// try to load the platform from the table
+			if ($this->getTable() && $this->getTable()->getDatabase()) {
+				$this->setPlatform($this->getTable()->getDatabase()->getPlatform());
+			}
 		}
+		return $this->platform;
+	}
+	
+	/**
+	 * Platform setter
+	 * 
+	 * @param PropelPlatformInterface $platform
+	 */
+	public function setPlatform(PropelPlatformInterface $platform)
+	{
+		$this->platform = $platform;
 	}
 
 	/**

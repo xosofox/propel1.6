@@ -1,4 +1,0 @@
-A simple clone of the svn repo from http://svn.propelorm.org/branches/1.6/ 
-Created by KaroDidi and updated (hopefully) automatically be cron
-
-Because I don't like working with gitsvnsomethingsomehowconvertit... just use a plain git submodule

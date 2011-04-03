@@ -12,12 +12,13 @@ require_once 'PHPUnit/Framework.php';
 require_once dirname(__FILE__) . '/../../../../generator/lib/model/Column.php';
 require_once dirname(__FILE__) . '/../../../../generator/lib/builder/util/XmlToAppData.php';
 require_once dirname(__FILE__) . '/../../../../generator/lib/platform/DefaultPlatform.php';
+require_once dirname(__FILE__) . '/../../../../generator/lib/behavior/AutoAddPkBehavior.php';
 
 /**
  * Tests for package handling.
  *
  * @author     <a href="mailto:mpoeschl@marmot.at>Martin Poeschl</a>
- * @version    $Revision: 2070 $
+ * @version    $Revision: 2221 $
  * @package    generator.model
  */
 class ColumnTest extends PHPUnit_Framework_TestCase
@@ -151,6 +152,38 @@ EOF;
 		$this->assertEquals('foo', $column->getSingularName());
 		$column = new Column('foso');
 		$this->assertEquals('foso', $column->getSingularName());
+	}
+	
+	public function testGetValidator()
+	{
+		$xmlToAppData = new XmlToAppData(new DefaultPlatform());
+		$schema = <<<EOF
+<database name="test">
+  <table name="table1">
+    <column name="id" primaryKey="true" />
+    <column name="title1" type="VARCHAR" />
+    <validator column="title1">
+      <rule name="minLength" value="4" message="Username must be at least 4 characters !" />
+    </validator>
+    <column name="title2" type="VARCHAR" />
+    <validator column="title2">
+      <rule name="minLength" value="4" message="Username must be at least 4 characters !" />
+      <rule name="maxLength" value="10" message="Username must be at most 10 characters !" />
+    </validator>
+  </table>
+</database>
+EOF;
+		$appData = $xmlToAppData->parseString($schema);
+		$table1 = $appData->getDatabase('test')->getTable('table1');
+		$this->assertNull($table1->getColumn('id')->getValidator());
+		$title1Column = $table1->getColumn('title1');
+		$title1Validator = $title1Column->getValidator();
+		$this->assertInstanceOf('Validator', $title1Validator);
+		$this->assertEquals(1, count($title1Validator->getRules()));
+		$title2Column = $table1->getColumn('title2');
+		$title2Validator = $title2Column->getValidator();
+		$this->assertInstanceOf('Validator', $title2Validator);
+		$this->assertEquals(2, count($title2Validator->getRules()));
 	}
 
 }

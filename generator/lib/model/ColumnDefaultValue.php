@@ -12,7 +12,7 @@
  * A class for holding a column default value.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 1612 $
+ * @version    $Revision: 2238 $
  * @package    propel.generator.model
  */
 class ColumnDefaultValue
@@ -85,6 +85,29 @@ class ColumnDefaultValue
 	public function setValue($value)
 	{
 		$this->value = $value;
+	}
+	
+	/**
+	 * A method to compare if two Default values match
+	 *
+	 * @param      ColumnDefaultValue $other The value to compare to 
+	 * @return     boolean Wheter this object represents same default value as $other
+	 * @author     Niklas Närhinen <niklas@narhinen.net>
+	 */
+	public function equals(ColumnDefaultValue $other)
+	{
+		if ($this->getType() != $other->getType()) {
+			return false;
+		}
+		if ($this == $other) {
+			return true;
+		}
+		// special case for current timestamp
+		$equivalents = array('CURRENT_TIMESTAMP', 'NOW()');
+		if (in_array(strtoupper($this->getValue()), $equivalents) && in_array(strtoupper($other->getValue()), $equivalents)) {
+			return true;
+		}
+		return false; // Can't help, they are different
 	}
 
 

@@ -9,7 +9,7 @@
  */
 
 require_once 'phing/Task.php';
-require_once 'task/PropelDataModelTemplateTask.php';
+require_once 'task/AbstractPropelDataModelTask.php';
 require_once 'builder/om/OMBuilder.php';
 require_once 'builder/om/ClassTools.php';
 
@@ -85,12 +85,14 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 			throw new BuildException("No outputFile specified.", $this->getLocation());
 		}
 
+		$this->log('Loading XML configuration file...');
+		
 		// Create a PHP array from the runtime-conf.xml file
-
 		$xmlDom = new DOMDocument();
 		$xmlDom->load($this->xmlConfFile->getAbsolutePath());
 		$xml = simplexml_load_string($xmlDom->saveXML());
 		$phpconf = self::simpleXmlToArray($xml);
+		$this->log(sprintf('Loaded "%s" successfully', $this->xmlConfFile->getAbsolutePath()), Project::MSG_VERBOSE);
 		
 		/* For some reason the array generated from runtime-conf.xml has separate
 		 * 'log' section and 'propel' sections. To maintain backward compatibility
@@ -109,9 +111,9 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 		// add generator version
 		$phpconf['generator_version'] = $this->getGeneratorConfig()->getBuildProperty('version');
 		
-		if (!$this->outputClassmapFile) { 
+		if (!$this->outputClassmapFile) {
 			// We'll create a default one for BC 
-			$this->outputClassmapFile = 'classmap-' . $this->outputFile; 
+			$this->outputClassmapFile = 'classmap-' . $this->outputFile;
 		} 
 		
 		// Write resulting PHP data to output file
@@ -125,10 +127,20 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 		$output .= "\$conf['classmap'] = include(dirname(__FILE__) . DIRECTORY_SEPARATOR . '".$this->outputClassmapFile."');\n";
 		$output .= "return \$conf;";
 
-
-		$this->log("Creating PHP runtime conf file: " . $outfile->getPath());
-		if (!file_put_contents($outfile->getAbsolutePath(), $output)) {
-			throw new BuildException("Error creating output file: " . $outfile->getAbsolutePath(), $this->getLocation());
+		$mustWriteRuntimeConf = true;
+		if (file_exists($outfile->getAbsolutePath())) {
+			$currentRuntimeConf = file_get_contents($outfile->getAbsolutePath());
+			if ($currentRuntimeConf == $output) {
+				$this->log(sprintf('No change in PHP runtime conf file "%s"', $outfile->getPath()), Project::MSG_VERBOSE);
+				$mustWriteRuntimeConf = false;
+			} else {
+				$this->log(sprintf('Updating PHP runtime conf file "%s"', $outfile->getPath()));
+			}
+		} else {
+			$this->log(sprintf('Creating PHP runtime conf file "%s"', $outfile->getPath()));
+		}
+		if ($mustWriteRuntimeConf && !file_put_contents($outfile->getAbsolutePath(), $output)) {
+			throw new BuildException("Error writing output file: " . $outfile->getAbsolutePath(), $this->getLocation());
 		}
 		
 		// add classmap
@@ -139,13 +151,45 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 		$output .= "return ";
 		$output .= var_export($phpconfClassmap, true);
 		$output .= ";";
-		$this->log("Creating PHP classmap runtime file: " . $outfile->getPath());
-		if (!file_put_contents($outfile->getAbsolutePath(), $output)) {
-		  throw new BuildException("Error creating output file: " . $outfile->getAbsolutePath(), $this->getLocation());
+		
+		$mustWriteClassMap = true;
+		if (file_exists($outfile->getAbsolutePath())) {
+			$currentClassmap = file_get_contents($outfile->getAbsolutePath());
+			if ($currentClassmap == $output) {
+				$this->log(sprintf('No change in PHP classmap file "%s"', $outfile->getPath()), Project::MSG_VERBOSE);
+				$mustWriteClassMap = false;
+			} else {
+				$currentPhpconfClassmap = include $outfile->getAbsolutePath();
+				if ($addedMaps = array_diff_assoc($phpconfClassmap, $currentPhpconfClassmap)) {
+					$this->log('Added classmap for the following classes:', Project::MSG_VERBOSE);
+					$this->logClassMap($addedMaps);
+				}
+				if ($removedMaps = array_diff_assoc($currentPhpconfClassmap, $phpconfClassmap)) {
+					$this->log('Removed classmap for the following classes:', Project::MSG_VERBOSE);
+					$this->logClassMap($removedMaps);
+				}
+				$this->log(sprintf('Updating PHP classmap file "%s"', $outfile->getPath()));
+			}
+		} else {
+			$this->log(sprintf('Creating PHP classmap file "%s"', $outfile->getPath()));
+			$this->logClassMap($phpconfClassmap);
+		}
+		if ($mustWriteClassMap && !file_put_contents($outfile->getAbsolutePath(), $output)) {
+			throw new BuildException("Error writing output file: " . $outfile->getAbsolutePath(), $this->getLocation());
+		}
+		
+		if (!$mustWriteRuntimeConf && !$mustWriteClassMap) {
+			$this->log('No change in compiled configuration files');
 		}
 
 	} // main()
 
+	protected function logClassMap($classMap)
+	{
+		foreach ($classMap as $className => $classPath) {
+			$this->log(sprintf('  %-15s => %s', $className, $classPath), Project::MSG_VERBOSE);
+		}
+	}
 	/**
 	 * Recursive function that converts an SimpleXML object into an array.
 	 * @author     Christophe VG (based on code form php.net manual comment)
@@ -256,7 +300,6 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 
 						foreach (array('tablemap', 'peerstub', 'objectstub', 'querystub', 'peer', 'object', 'query') as $target) {
 							$builder = $generatorConfig->getConfiguredBuilder($table, $target);
-							$this->log("Adding class mapping: " . $builder->getClassname() . ' => ' . $builder->getClassFilePath());
 							$classMap[$builder->getFullyQualifiedClassname()] = $builder->getClassFilePath();
 						}
 
@@ -270,9 +313,8 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 							if ($col->isEnumeratedClasses()) {
 								foreach ($col->getChildren() as $child) {
 									foreach (array('objectmultiextend', 'queryinheritance', 'queryinheritancestub') as $target) {
-											$builder = $generatorConfig->getConfiguredBuilder($table, $target);
+										$builder = $generatorConfig->getConfiguredBuilder($table, $target);
 										$builder->setChild($child);
-										$this->log("Adding class mapping: " . $builder->getClassname() . ' => ' . $builder->getClassFilePath());
 										$classMap[$builder->getFullyQualifiedClassname()] = $builder->getClassFilePath();
 									}
 								}
@@ -288,7 +330,6 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 							$className = ClassTools::classname($baseClass);
 							if (!isset($classMap[$className])) {
 								$classPath = ClassTools::getFilePath($baseClass);
-								$this->log('Adding class mapping: ' . $className . ' => ' . $classPath);
 								$classMap[$className] = $classPath;
 							}
 						}
@@ -298,7 +339,6 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 							$className = ClassTools::classname($basePeer);
 							if (!isset($classMap[$className])) {
 								$classPath = ClassTools::getFilePath($basePeer);
-								$this->log('Adding class mapping: ' . $className . ' => ' . $classPath);
 								$classMap[$className] = $classPath;
 							}
 						}
@@ -309,7 +349,6 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 						
 						if ($table->getInterface()) {
 							$builder = $generatorConfig->getConfiguredBuilder($table, 'interface');
-							$this->log("Adding class mapping: " . $builder->getClassname() . ' => ' . $builder->getClassFilePath());
 							$classMap[$builder->getFullyQualifiedClassname()] = $builder->getClassFilePath();
 						}
 						
@@ -320,14 +359,12 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 						if ($table->treeMode() == 'MaterializedPath') {
 							foreach (array('nodepeerstub', 'nodestub', 'nodepeer', 'node') as $target) {
 								$builder = $generatorConfig->getConfiguredBuilder($table, $target);
-								$this->log("Adding class mapping: " . $builder->getClassname() . ' => ' . $builder->getClassFilePath());
 								$classMap[$builder->getFullyQualifiedClassname()] = $builder->getClassFilePath();
 							}
 						}
 						if ($table->treeMode() == 'NestedSet') {
 							foreach (array('nestedset', 'nestedsetpeer') as $target) {
 								$builder = $generatorConfig->getConfiguredBuilder($table, $target);
-								$this->log("Adding class mapping: " . $builder->getClassname() . ' => ' . $builder->getClassFilePath());
 								$classMap[$builder->getFullyQualifiedClassname()] = $builder->getClassFilePath();
 							}
 						}
@@ -339,7 +376,6 @@ class PropelConvertConfTask extends AbstractPropelDataModelTask
 							foreach ($table->getAdditionalBuilders() as $builderClass) {
 								$builder = new $builderClass($table);
 								$builder->setGeneratorConfig($generatorConfig);
-								$this->log("Adding class mapping: " . $builder->getClassname() . ' => ' . $builder->getClassFilePath());
 								$classMap[$builder->getFullyQualifiedClassname()] = $builder->getClassFilePath();
 							}
 						}

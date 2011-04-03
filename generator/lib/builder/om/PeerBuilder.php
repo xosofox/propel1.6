@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once 'builder/om/OMBuilder.php';
+require_once dirname(__FILE__) . '/OMBuilder.php';
 
 /**
  * Base class for Peer-building classes.
@@ -141,6 +141,11 @@ abstract class PeerBuilder extends OMBuilder
 
 		$this->addTranslateFieldName($script);
 		$this->addGetFieldNames($script);
+		
+		if ($table->hasEnumColumns()) {
+			$this->addGetValueSets($script);
+			$this->addGetValueSet($script);
+		}
 
 		if (!$table->isAlias()) {
 			$this->addAlias($script); // alias() utility method (deprecated?)

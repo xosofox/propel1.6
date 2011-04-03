@@ -8,14 +8,14 @@
  * @license    MIT License
  */
 
-require_once 'model/XMLElement.php';
+require_once dirname(__FILE__) . '/XMLElement.php';
 
 /**
  * Data about a validation rule used in an application.
  *
  * @author     Michael Aichler <aichler@mediacluster.de> (Propel)
  * @author     John McNally <jmcnally@collab.net> (Intake)
- * @version    $Revision: 1612 $
+ * @version    $Revision: 1834 $
  * @package    propel.generator.model
  */
 class Rule extends XMLElement

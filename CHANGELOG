@@ -1,5 +1,120 @@
 = Changelog Of The Propel 1.5 Branch =
 
+== 2011-01-12: Version 1.5.6 ==
+
+ * [2142] Fixed infinite loop when reverse engineering date fields in postgresql and in PHP5.3 (closes #1218)
+ * [2141] Fixed `useQuery()` when using namespaces (closes #1187)
+ * [2139] Fixed nested set `updateLoadedNodes()` when using lazy loaded columns (patch by rozwell) (closes #1132)
+ * [2138] Fixed problem when adding more than one root in a `nested_set` tree with no scope (based on a patch by rozwell) (closes #1203, #1202)
+ * [2137] Fixed Nested Set behavior doesn't insert already persisted objects correctly (closes #1217)
+ * [2135] Added reverse support for `pdo_sqlsrv` driver. (KRavEN) (closes #1147)
+ * [2108] Fixed skipped SQL queries when using new SQLSRV adapter (closes #1205)
+ * [2106] Fixed the `PropelCollection::toKeyValue()` documentation
+ * [2068] Fixed wrong php doc in concrete inheritance classes (closes #1188)
+ * [2067] Fixed regression in `query_cache` behavior (patch by kupokomapa) (refs #1148) (closes #1191)
+ * [2066] Fixed typo in schema DTD (patch by omeaart) (closes #1194)
+ * [2065] Added a few details about lazy loaded columns
+
+== 2010-11-17: Version 1.5.5 ==
+
+ * [2039] Fixed wrong Peer classname in `BaseObject` when using sluggable together with basePrefix (closes #1134)
+ * [2038] Fixed wrong package on Query class when overriding parent package in single table inheritance (raebbar) (closes #1077)
+ * [2037] Fixed warning when using quotes in conditions (closes #1152)
+ * [2036] Fixed runtime warning when datasource name is "default" (closes #1127)
+ * [2035] Fixed failing test because of too tight timing (fonsinchen) (closes #1139)
+ * [2034] Fixed typo in validators documentation (closes #1168)
+ * [2033] Fixed `PropelModelPager` overrides query formatter (closes #1166)
+ * [2032] Fixed incorrect Column DDL on MySQL when using Charset vendor (based on a patch by Jorrit) (closes #1167)
+ * [2030] Fixed notice in `ModelCriteria` (closes #1161)
+ * [2029] Fixed single table inheritance documentation (closes #1163)
+ * [2028] Fixed bug in generated files when using namespaces on a case-sensitive system
+ * [2027] Fixed xml schema sort (ddalmais)
+ * [2026] Correct problem of DBOracle and applyLimit fixes #1153 (ddalmais)
+ * [2024] Fixed nested set getSiblings() order (based on a patch by Richtermeister) (closes #1149)
+ * [2023] Fixed Limit of 30 characters on Oracle Column aliases (ddalmais) (closes #1148)
+ * [2021] Fixed missing namespace declaration on AR objects using timestamp columns in PHP 5.3 (based on a patch by jan-victor) (closes #1100)
+ * [2020] Fixed getPath() in nested set AR classes (based on a patch by andyr12345) (closes #1125)
+ * [2019] Fixed findOneOrCreate() makes two queries instead of one (closes #1128)
+ * [2018] Disabled XML rendered in Phing unit test buildfile to enable the use of latest phpunit releases (you can re-eanable it by decommenting the line)
+ * [2012] Backporting [2010] to 1.5, properly closes #1145
+ * [1978] Coding standards in object builder template
+ * [1973] Line break regressions from whitespace cleanup
+ * [1963] Fixed use of autoloaded behavior (closes #1126)
+
+== 2010-09-14: Version 1.5.4 ==
+
+ * [1954] Changed schema mappings for MSSQL that mapped to TEXT to map to VARCHAR(MAX) and mappings that mapped to IMAGE to map to VARBINARY(MAX). (KRavEN) (refs #1084)
+ * [1953] Removed unnesessary `MssqlDateTime` class as it is not needed with a properly configured FreeTDS. (KRavEN) (refs #1045)
+ * [1952] Removed unnecessary `DBMSSQL::getTimestampFormatter()` method. (KRavEN) (refs #1045)
+ * [1951] Added docs for using MSSQL Server with Propel. (KRavEN) (closes #772)
+ * [1950] Removed systematical commits from read queries. (KRavEN) (refs #1068)
+ * [1947] fixed `BasePeer` tests to account for `DBMSSQL::applyLimit()` changes (KRavEN) (#Refs #1118)
+ * [1946] added proper blob support for `pdo_sqlsrv` driver (KRavEN) (Closes #1096)
+ * [1944] added `pdo_sqlsrv` specific support to the generator (KRavEN) (Closes #1121)
+ * [1943] added new `DBAdapter::cleanupSQL()` method to allow manipulation of the query string before PDOStatement is instantiated. Fixed `pdo_dblib` FreeTDS blob inserts for MSSQL (KRavEN) (Closes #788)
+ * [1941] Fixed formatting in `Criteria` class
+ * [1940] Cleaned up obsolete adapters in DBAdapter. `Added DBMSSQL::setCharset()` method to return nothing as MSSQL does not support SET NAMES (Closes #707)
+ * [1937] Fixed warnings in the om build task
+ * [1935] Fixed behaviors would fail when using `TablePrefix` (closes #1105)
+ * [1933] Fixed a bug where `DBMSSQL::applyLimit()` was quoting identifiers that were already quoted (KRavEN) (Closes #1118)
+ * [1930] Added missing namespace declarations in generated model objects (based on a patch by marten) (closes #1100)
+ * [1928] Added missing PostgreSQL types for reverse engineering (blased on a patch by poisson) (closes #1094)
+ * [1927] Fixed `ModelCriteria::delete()` uses the wrong connection (closes #1117)
+ * [1926] Fixed `reload()` fails to reload many-to-many relationships (closes #1112)
+ * [1923] Made formatters able to deal with a statement without `Criteria` if the class is specified (closes #1107)
+ * [1918] Fix Oracle reverse Engineering problems (ddalmais) (closes #1099)
+ * [1917] Fixed side effect of on demand unit test
+ 
+== 2010-08-16: Version 1.5.3 ==
+
+ * [1912] Fixed incorrect test syntax (niklas) (closes #1092)
+ * [1911] Fixed `NamespaceTest` in PostgreSQL (niklas) (refs #1089)
+ * [1910] Fixed single table inheritance when using packages (closes #1091)
+ * [1909] Moved DELETE sql code service to `BasePeer` (niklas) (closes #1090)
+ * [1906] Fixed concrete table inheritance duplicates parent entries on fixture load (chris) (closes #1054)
+ * [1904] Replaced `MssqlDateTime.class.php` as it is still required when using `pdo_dblib` (KRavEN) (Closes #1045)
+ * [1899] Added `ModelCriteria::groupByClass()` to ease the use of aggregate functions with PostgreSQL (closes #1022)
+ * [1898] Fixed all formatters when dealing with joined hydration of objects linked by a custom relation name (closes #1076, #977)
+ * [1895] Fixed typo in `PropelOnDemandFormatter` that makes in fail with single table inheritance (closes #1078)
+ * [1893] Fixed unit tests that were failing for a lack of order by clause (refs #991)
+ * [1881] Fixed typo in behaviors doc (refs #1046)
+ * [1880] Fixed generated useFkQuery() to allow subsequent use of with() (based on a patch by ngnpope) (closes #1035)
+ * [1879] Fixed test failing for the wrong reason (refs r1873)
+ * [1876] ordering classmap by classname, to avoid discrepancies due to OS/Phing differences
+ * [1873] Added tests for `PDOStatement::fetch()` after `PDO::commit()` PDO driver support (KRavEN)
+ * [1872] added md5 of binary file contents to prevent cli terminal issues when assertEquals fails (KRavEN)
+ * [1868] added md5 of binary file contents to prevent cli terminal issues when assertEquals fails (KRavEN)
+ * [1866] Added a warning for unit tests without PHP 5.3 (closes #1056)
+ * [1863] Fixed generated nested_set getter and setter when the scope column is called "scope_value" (closes #1051)
+ * [1857] Fixed generated nested_set getter and setter when the level column is called "level" (closes #1051)
+ * [1856] Improved composite FK getter to use instance pool (ArnaudD) (closes #1011)
+ * [1855] fixed a typo (refs #991)
+ * [1854] added `PropelSimpleArrayFormatter` to docs (refs #991)
+ * [1853] moved `ModelCriteria::select()` docs. removed `ModelCriteriaSelectTests` that would always fail (refs #991)
+ * [1851] Refactored `ModelCriteria::select()` tests (refs #991)
+ * [1850] Fixed coding standards in `ModelCriteria::select()` (refs #991)
+ * [1849] Using `mb_strlen()` instead of `strlen()` in validators when available (closes #1038)
+ * [1848] Fixed two step single table inheritance (closes #1033)
+ * [1847] Fixed missing parameter in `auto_add_pk` behavior documentation (ngnpope) (closes #1048)
+ * [1846] fixed `ModelCriteria::select()` documentation formatting. (refs #991)
+ * [1845] added `ModelCriteria::select()` documentation. (refs #991)
+ * [1844] Resolved whitespace descrepancies. (refs #986, #991) (closes #1045)
+ * [1843] initial support for `pdo_sqlsrv`. (refs #986)
+ * [1842] added `ModelCriteria::select()` implementation. (refs #991)
+ * [1841] Added proper `DBMSSQL::getTimestampFormatter()`. Removed obsolete `MssqlDateTime.class.php`. (closes #1045)
+ * [1839] Allowed behaviors to add classes (refs #1046)
+ * [1838] Made `DebugPDOStatement` able to log calls to `bindParam()` (based on a patch by ddalmais)
+ * [1832] Made nested set behavior faster by allowing the use of smart index in `branchOf()` and `descendentsOf()` (patch from Wicked) (closes #1034)
+ * [1831] Fixed `ModelCriteria::addJoin()` behaves differently than `Criteria::addJoin()` (closes #1041)
+ * [1826] Fixed namespaced tests that were falling since r1815
+ * [1821] documented the `namespace.autoPackage` build property (refs #1005)
+ * [1820] Allowed custom `BaseObject` classes to define their own `__call()` defaults (closes #1029)
+ * [1819] failing loudly instead of deleting too many results when doDelete() is called on a Criteria with join (closes #1030)
+ * [1818] Fixed `populateRelation()` documentation (closes #1023)
+ * [1817] Fixed issue with `classPrefix` and timestampable behavior (closes #1027)
+ * [1816] Fixed `filterByPrimaryKeys()` when passed an empty array with composite pks, made populateRelation() smarter when dealing with empty collections (closes #1025)
+ * [1815] Fixed regression in SQL build (`mysql.tableType` build property was not used anymore)
+
 == 2010-06-17: Version 1.5.2 ==
 
  * [1810] Changed default table type keyword to ENGINE for MySQL (closes #969)

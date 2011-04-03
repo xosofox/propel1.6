@@ -8,16 +8,13 @@
  * @license    MIT License
  */
 
-require_once 'builder/om/PeerBuilder.php';
+require_once dirname(__FILE__) . '/PeerBuilder.php';
 
 /**
  * Generates a PHP5 tree node Peer class for user object model (OM).
  *
  * This class produces the base tree node object class (e.g. BaseMyTable) which contains all
  * the custom-built accessor and setter methods.
- *
- * This class replaces the Node.tpl, with the intent of being easier for users
- * to customize (through extending & overriding).
  *
  * @author     Hans Lellelid <hans@xmpl.org>
  * @package    propel.generator.builder.om
@@ -454,7 +451,7 @@ abstract class ".$this->getClassname()." {
 			\$stmt->bindValue(4, \$srcPath);// string
 			\$srcPathWC = \$srcPath . $nodePeerClassname::NPATH_SEP . '%';
 			\$stmt->bindValue(5, \$srcPathWC); // string
-			\$stmt->execute();			
+			\$stmt->execute();
 		// <hack>
 		}
 	}

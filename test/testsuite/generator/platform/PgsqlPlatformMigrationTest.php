@@ -175,7 +175,39 @@ ALTER TABLE "foo1" ADD CONSTRAINT "foo1_FK_2"
 END;
 		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff));
 	}
-	
+
+	/**
+	 * @dataProvider providerForTestGetModifyTableForeignKeysSkipSqlDDL
+	 */
+	public function testGetModifyTableForeignKeysSkipSqlDDL($tableDiff)
+	{
+		$expected = <<<END
+
+ALTER TABLE "foo1" DROP CONSTRAINT "foo1_FK_1";
+
+END;
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff));
+		$expected = <<<END
+
+ALTER TABLE "foo1" ADD CONSTRAINT "foo1_FK_1"
+	FOREIGN KEY ("bar")
+	REFERENCES "foo2" ("bar");
+
+END;
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff->getReverseDiff()));
+	}
+
+	/**
+	 * @dataProvider providerForTestGetModifyTableForeignKeysSkipSql2DDL
+	 */
+	public function testGetModifyTableForeignKeysSkipSql2DDL($tableDiff)
+	{
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff));
+		$expected = '';
+		$this->assertEquals($expected, $this->getPlatform()->getModifyTableForeignKeysDDL($tableDiff->getReverseDiff()));
+	}
+
 	/**
 	 * @dataProvider providerForTestGetRemoveColumnDDL
 	 */

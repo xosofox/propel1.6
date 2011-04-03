@@ -18,7 +18,7 @@ require_once 'ConcreteInheritanceParentBehavior.php';
  * to the parent model.
  *
  * @author     François Zaninotto
- * @version    $Revision: 2171 $
+ * @version    $Revision: 2240 $
  * @package    propel.generator.behavior.concrete_inheritance
  */
 class ConcreteInheritanceBehavior extends Behavior
@@ -27,7 +27,8 @@ class ConcreteInheritanceBehavior extends Behavior
 	protected $parameters = array(
 		'extends'             => '',
 		'descendant_column'   => 'descendant_class',
-		'copy_data_to_parent' => 'true'
+		'copy_data_to_parent' => 'true',
+		'schema'              => ''
 	);
 	
 	public function modifyTable()
@@ -63,7 +64,8 @@ class ConcreteInheritanceBehavior extends Behavior
 			$table->addColumn($copiedColumn);
 			if ($column->isPrimaryKey() && $this->isCopyData()) {
 				$fk = new ForeignKey();
-				$fk->setForeignTableName($column->getTable()->getName());
+				$fk->setForeignTableCommonName($column->getTable()->getCommonName());
+				$fk->setForeignSchemaName($column->getTable()->getSchema());
 				$fk->setOnDelete('CASCADE');
 				$fk->setOnUpdate(null);
 				$fk->addReference($copiedColumn, $column);
@@ -99,10 +101,6 @@ class ConcreteInheritanceBehavior extends Behavior
 			$copiedUnique->setName('');
 			$this->getTable()->addUnique($copiedUnique);
 		}
-		
-		// give name to newly added foreign keys and indices 
-		// (this is already done for other elements of the current table)
-		$table->doNaming(); 
 
 		// add the Behaviors of the parent table
 		foreach ($parentTable->getBehaviors() as $behavior) {
@@ -119,7 +117,11 @@ class ConcreteInheritanceBehavior extends Behavior
 	protected function getParentTable()
 	{
 		$database = $this->getTable()->getDatabase();
-		return $database->getTable($database->getTablePrefix() . $this->getParameter('extends'));
+		$tableName = $database->getTablePrefix() . $this->getParameter('extends');
+		if ($database->getPlatform()->supportsSchemas() && $this->getParameter('schema')) {
+			$tableName = $this->getParameter('schema').'.'.$tableName;
+		}
+		return $database->getTable($tableName);
 	}
 	
 	protected function isCopyData()
@@ -135,6 +137,9 @@ class ConcreteInheritanceBehavior extends Behavior
 				break;
 			case 'QueryBuilder':
 				return $builder->getNewStubQueryBuilder($this->getParentTable())->getClassname();
+				break;
+			case 'PHP5PeerBuilder':
+				return $builder->getNewStubPeerBuilder($this->getParentTable())->getClassname();
 				break;
 			default:
 				return null;

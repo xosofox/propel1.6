@@ -39,10 +39,8 @@
 			<xs:enumeration value="LONGVARBINARY"/>
 			<xs:enumeration value="NULL"/>
 			<xs:enumeration value="OTHER"/>
-			<xs:enumeration value="PHP_OBJECT"/>
 			<xs:enumeration value="DISTINCT"/>
 			<xs:enumeration value="STRUCT"/>
-			<xs:enumeration value="ARRAY"/>
 			<xs:enumeration value="BLOB"/>
 			<xs:enumeration value="CLOB"/>
 			<xs:enumeration value="REF"/>
@@ -50,6 +48,9 @@
 			<xs:enumeration value="BOOLEANCHAR"/>
 			<xs:enumeration value="DOUBLE"/>
 			<xs:enumeration value="BOOLEAN"/>
+			<xs:enumeration value="OBJECT"/>
+			<xs:enumeration value="ARRAY"/>
+			<xs:enumeration value="ENUM"/>
 		</xs:restriction>
 	</xs:simpleType>
 
@@ -200,6 +201,13 @@
 
 	<!-- Restrict table name to letters (upper- and lowercase), numbers and the _ -->
 	<xs:simpleType name="table_name">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[\w_]+"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<!-- Restrict schema name to letters (upper- and lowercase), numbers and the _ -->
+	<xs:simpleType name="schema_name">
 		<xs:restriction base="xs:string">
 			<xs:pattern value="[\w_]+"/>
 		</xs:restriction>
@@ -416,7 +424,6 @@
 		</xs:attribute>
 		<xs:attribute name="autoIncrement" type="xs:boolean" default="false"/>
 		<xs:attribute name="inheritance" type="inh_option" default="false"/>
-		<xs:attribute name="inputValidator" type="xs:string" use="optional"/>
 		<xs:attribute name="phpNamingMethod" type="phpnamingmethod" use="optional">
 			<xs:annotation>
 				<xs:documentation xml:lang="en">
@@ -480,6 +487,13 @@
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
+		<xs:attribute name="valueSet" type="xs:string" use="optional">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					 The list of values for an ENUM column, separated by commas
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 	</xs:complexType>
 
 	<xs:complexType name="foreign-key">
@@ -497,6 +511,13 @@
 			<xs:annotation>
 				<xs:documentation xml:lang="en">
 					The other table name
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="foreignSchema" type="schema_name" use="optional">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					The other schema name
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
@@ -530,6 +551,13 @@
 		</xs:attribute>
 		<xs:attribute name="onDelete" type="delete" default="none"/>
 		<xs:attribute name="onUpdate" type="update" default="none"/>
+		<xs:attribute name="skipSql" type="xs:boolean" default="false">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					Instructs Propel not to generate DDL SQL for the specified foreign key. This can be used to support relationships in the model without an actual foreign key.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 	</xs:complexType>
 
 	<xs:complexType name="external-schema">
@@ -618,6 +646,13 @@
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
+		<xs:attribute name="schema" type="schema_name" use="optional">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					The table's schema for RDBMs supporting multiple schemas per database.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 		<xs:attribute name="phpName" type="php_class" use="optional">
 			<xs:annotation>
 				<xs:documentation xml:lang="en">
@@ -664,7 +699,7 @@
 		<xs:attribute name="skipSql" type="xs:boolean" default="false">
 			<xs:annotation>
 				<xs:documentation xml:lang="en">
-					Instructs Propel not to generate DDL SQL for the specified table. This can be used together with readOnly for supperting VIEWS in Propel
+					Instructs Propel not to generate DDL SQL for the specified table. This can be used together with readOnly for supporting VIEWS in Propel
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
@@ -754,6 +789,13 @@
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
+		<xs:attribute name="defaultStringFormat" type="xs:string" use="optional">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					The default format used to convert objects based on this table to strings. Propel supports by default the 'XML', 'YAML', 'JSON', and 'CSV' formats, but custom formats are also possible.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 	</xs:complexType>
 
 	<xs:complexType name="database">
@@ -823,6 +865,13 @@
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
+		<xs:attribute name="schema" type="schema_name" use="optional">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					Specify a schema for the tables in this database. Useful for RDBMs which support multiple schemas per database.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
 		<xs:attribute name="baseClass" type="php_class" use="optional">
 			<xs:annotation>
 				<xs:documentation xml:lang="en">
@@ -855,6 +904,13 @@
 			<xs:annotation>
 				<xs:documentation xml:lang="en">
 					Adds a prefix to all the SQL table names
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="defaultStringFormat" type="xs:string" use="optional">
+			<xs:annotation>
+				<xs:documentation xml:lang="en">
+					The default format used to convert objects based on this database to strings. Propel supports by default the 'XML', 'YAML', 'JSON', and 'CSV' formats, but custom formats are also possible.
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>

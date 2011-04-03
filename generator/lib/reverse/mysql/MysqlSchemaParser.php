@@ -8,13 +8,13 @@
  * @license    MIT License
  */
 
-require_once 'reverse/BaseSchemaParser.php';
+require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
 
 /**
  * Mysql database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 1612 $
+ * @version    $Revision: 2090 $
  * @package    propel.generator.reverse.mysql
  */
 class MysqlSchemaParser extends BaseSchemaParser
@@ -30,7 +30,7 @@ class MysqlSchemaParser extends BaseSchemaParser
 	 * @var        array
 	 */
 	private static $mysqlTypeMap = array(
-		'tinyint' => PropelTypes::TINYINT,
+		'tinyint' => PropelTypes::BOOLEAN,
 		'smallint' => PropelTypes::SMALLINT,
 		'mediumint' => PropelTypes::SMALLINT,
 		'int' => PropelTypes::INTEGER,
@@ -60,6 +60,15 @@ class MysqlSchemaParser extends BaseSchemaParser
 		'enum' => PropelTypes::CHAR,
 		'set' => PropelTypes::CHAR,
 	);
+	
+	protected static $defaultTypeSizes = array(
+		'char'     => 1,
+		'tinyint'  => 4,
+		'smallint' => 6,
+		'int'      => 11,
+		'bigint'   => 20,
+		'decimal'  => 10,
+	);
 
 	/**
 	 * Gets a type mapping from native types to Propel types
@@ -74,7 +83,7 @@ class MysqlSchemaParser extends BaseSchemaParser
 	/**
 	 *
 	 */
-	public function parse(Database $database, PDOTask $task = null)
+	public function parse(Database $database, Task $task = null)
 	{
 		$this->addVendorInfo = $this->getGeneratorConfig()->getBuildProperty('addVendorInfo');
 
@@ -82,26 +91,29 @@ class MysqlSchemaParser extends BaseSchemaParser
 
 		// First load the tables (important that this happen before filling out details of tables)
 		$tables = array();
-		$task->log("Reverse Engineering Tables");
+		if ($task) $task->log("Reverse Engineering Tables", Project::MSG_VERBOSE);
 		while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
 			$name = $row[0];
-			$task->log("  Adding table '" . $name . "'");
+			if ($name == $this->getMigrationTable()) {
+				continue;
+			}
+			if ($task) $task->log("  Adding table '" . $name . "'", Project::MSG_VERBOSE);
 			$table = new Table($name);
 			$database->addTable($table);
 			$tables[] = $table;
 		}
 		
 		// Now populate only columns.
-		$task->log("Reverse Engineering Columns");
+		if ($task) $task->log("Reverse Engineering Columns", Project::MSG_VERBOSE);
 		foreach ($tables as $table) {
-			$task->log("  Adding columns for table '" . $table->getName() . "'");
+			if ($task) $task->log("  Adding columns for table '" . $table->getName() . "'", Project::MSG_VERBOSE);
 			$this->addColumns($table);
 		}
 
 		// Now add indices and constraints.
-		$task->log("Reverse Engineering Indices And Constraints");
+		if ($task) $task->log("Reverse Engineering Indices And Constraints", Project::MSG_VERBOSE);
 		foreach ($tables as $table) {
-			$task->log("  Adding indices and constraints for table '" . $table->getName() . "'");
+			if ($task) $task->log("  Adding indices and constraints for table '" . $table->getName() . "'", Project::MSG_VERBOSE);
 			$this->addForeignKeys($table);
 			$this->addIndexes($table);
 			$this->addPrimaryKey($table);
@@ -144,6 +156,12 @@ class MysqlSchemaParser extends BaseSchemaParser
 						$size = (int) $matches[2];
 					}
 				}
+				foreach (self::$defaultTypeSizes as $type => $defaultSize) {
+					if ($nativeType == $type && $size == $defaultSize) {
+						$size = null;
+						continue;
+					}
+				}
 			} elseif (preg_match('/^(\w+)\(/', $row['Type'], $matches)) {
 				$nativeType = $matches[1];
 			} else {
@@ -167,6 +185,10 @@ class MysqlSchemaParser extends BaseSchemaParser
 			$column->getDomain()->replaceSize($size);
 			$column->getDomain()->replaceScale($scale);
 			if ($default !== null) {
+				if ($propelType == PropelTypes::BOOLEAN) {
+					if ($default == '1') $default = 'true';
+					if ($default == '0') $default = 'false';
+				}
 				if (in_array($default, array('CURRENT_TIMESTAMP'))) {
 					$type = ColumnDefaultValue::TYPE_EXPR;
 				} else {
@@ -238,10 +260,17 @@ class MysqlSchemaParser extends BaseSchemaParser
 					}
 				}
 				
+				// restrict is the default
+				foreach ($fkactions as $key => $action) {
+					if ($action == ForeignKey::RESTRICT) {
+						$fkactions[$key] = null;
+					}
+				}
+				
 				$localColumns = array();
 				$foreignColumns = array();
-				
-				$foreignTable = $database->getTable($ftbl);
+				;
+				$foreignTable = $database->getTable($ftbl, true);
 				
 				foreach($fcols as $fcol) {
 					$foreignColumns[] = $foreignTable->getColumn($fcol);
@@ -252,7 +281,8 @@ class MysqlSchemaParser extends BaseSchemaParser
 
 				if (!isset($foreignKeys[$name])) {
 					$fk = new ForeignKey($name);
-					$fk->setForeignTableName($foreignTable->getName());
+					$fk->setForeignTableCommonName($foreignTable->getCommonName());
+					$fk->setForeignSchemaName($foreignTable->getSchema());
 					$fk->setOnDelete($fkactions['ON DELETE']);
 					$fk->setOnUpdate($fkactions['ON UPDATE']);
 					$table->addForeignKey($fk);

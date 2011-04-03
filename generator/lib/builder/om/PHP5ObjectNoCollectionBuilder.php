@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once 'builder/om/PHP5ObjectBuilder.php';
+require_once dirname(__FILE__) . '/PHP5ObjectBuilder.php';
 
 /**
  * Generates a PHP5 base Object class for user object model (OM).
@@ -501,7 +501,7 @@ class PHP5ObjectNoCollectionBuilder extends PHP5ObjectBuilder
 		if (\$this->$varName === null && ($conditional)) {";
 		if ($useRetrieveByPk) {
 			$script .= "
-			\$this->$varName = ".$fkPeerBuilder->getPeerClassname()."::retrieveByPk($localColumns);";
+			\$this->$varName = ".$fkPeerBuilder->getPeerClassname()."::retrieveByPk($localColumns, \$con);";
 		} else {
 			$script .= "
 			\$c = new Criteria(".$fkPeerBuilder->getPeerClassname()."::DATABASE_NAME);";

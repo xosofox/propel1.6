@@ -8,7 +8,7 @@
  * @license    MIT License
  */
 
-require_once 'model/XMLElement.php';
+require_once dirname(__FILE__) . '/XMLElement.php';
 
 /**
  * A Class for information about foreign keys of a table.
@@ -16,22 +16,31 @@ require_once 'model/XMLElement.php';
  * @author     Hans Lellelid <hans@xmpl.org>
  * @author     Fedor <fedor.karpelevitch@home.com>
  * @author     Daniel Rall <dlr@finemaltcoding.com>
- * @version    $Revision: 1856 $
+ * @author     Ulf Hermann <ulfhermann@kulturserver.de>
+ * @version    $Revision: 2194 $
  * @package    propel.generator.model
  */
 class ForeignKey extends XMLElement
 {
 
-	protected $foreignTableName;
+	protected $foreignTableCommonName;
+	protected $foreignSchemaName;
 	protected $name;
 	protected $phpName;
 	protected $refPhpName;
 	protected $defaultJoin;
-	protected $onUpdate;
-	protected $onDelete;
+	protected $onUpdate = '';
+	protected $onDelete = '';
 	protected $parentTable;
 	protected $localColumns = array();
 	protected $foreignColumns = array();
+
+	/**
+	 * Whether to skip generation of SQL for this foreign key.
+	 *
+	 * @var       boolean
+	 */
+	protected $skipSql = false;
 
 	// the uppercase equivalent of the onDelete/onUpdate values in the dtd
 	const NONE     = "";            // No "ON [ DELETE | UPDATE]" behaviour specified.
@@ -57,19 +66,26 @@ class ForeignKey extends XMLElement
 	 */
 	protected function setupObject()
 	{
-		$this->foreignTableName = $this->getTable()->getDatabase()->getTablePrefix() . $this->getAttribute("foreignTable");
+		$this->foreignTableCommonName = $this->getTable()->getDatabase()->getTablePrefix() . $this->getAttribute("foreignTable");
+		$this->foreignSchemaName = $this->getAttribute("foreignSchema");
+		if (!$this->foreignSchemaName) {
+			if ($this->getTable()->getSchema()) {
+				$this->foreignSchemaName = $this->getTable()->getSchema();
+			}
+		}
 		$this->name = $this->getAttribute("name");
 		$this->phpName = $this->getAttribute("phpName");
 		$this->refPhpName = $this->getAttribute("refPhpName");
 		$this->defaultJoin = $this->getAttribute('defaultJoin');
 		$this->onUpdate = $this->normalizeFKey($this->getAttribute("onUpdate"));
 		$this->onDelete = $this->normalizeFKey($this->getAttribute("onDelete"));
+		$this->skipSql = $this->booleanValue($this->getAttribute("skipSql"));
 	}
 
 	/**
 	 * normalizes the input of onDelete, onUpdate attributes
 	 */
-	private function normalizeFKey($attrib)
+	public function normalizeFKey($attrib)
 	{
 		if ($attrib === null  || strtoupper($attrib) == "NONE") {
 			$attrib = self::NONE;
@@ -203,18 +219,32 @@ class ForeignKey extends XMLElement
 
 	/**
 	 * Get the foreignTableName of the FK
+	 * @return    string foreign table qualified name
 	 */
 	public function getForeignTableName()
 	{
-		return $this->foreignTableName;
+		if ($this->foreignSchemaName && $this->getTable()->getDatabase()->getPlatform()->supportsSchemas()) {
+			return $this->foreignSchemaName . '.' . $this->foreignTableCommonName;
+		} else {
+			return $this->foreignTableCommonName;
+		}
 	}
 
 	/**
-	 * Set the foreignTableName of the FK
+	 * Get the foreign table name without schema
+	 * @return    string foreign table common name
 	 */
-	public function setForeignTableName($tableName)
+	public function getForeignTableCommonName()
 	{
-		$this->foreignTableName = $tableName;
+		return $this->foreignTableCommonName;
+	}
+
+	/**
+	 * Set the foreignTableCommonName of the FK
+	 */
+	public function setForeignTableCommonName($tableName)
+	{
+		$this->foreignTableCommonName = $tableName;
 	}
 
 	/**
@@ -224,6 +254,22 @@ class ForeignKey extends XMLElement
 	public function getForeignTable()
 	{
 		return $this->getTable()->getDatabase()->getTable($this->getForeignTableName());
+	}
+
+	/**
+	 * Get the foreignSchemaName of the FK
+	 */
+	public function getForeignSchemaName()
+	{
+		return $this->foreignSchemaName;
+	}
+
+	/**
+	 * Set the foreignSchemaName of the FK
+	 */
+	public function setForeignSchemaName($schemaName)
+	{
+		$this->foreignSchemaName = $schemaName;
 	}
 
 	/**
@@ -248,6 +294,14 @@ class ForeignKey extends XMLElement
 	public function getTableName()
 	{
 		return $this->parentTable->getName();
+	}
+
+	/**
+	 * Returns the Name of the schema the foreign key is in
+	 */
+	public function getSchemaName()
+	{
+		return $this->parentTable->getSchema();
 	}
 
 	/**
@@ -280,7 +334,7 @@ class ForeignKey extends XMLElement
 
 	/**
 	 * Return a comma delimited string of local column names
-	 * @deprecated because Column::makeList() is deprecated; use the array-returning getLocalColumns() and DDLBuilder->getColumnList() instead instead.
+	 * @deprecated because Column::makeList() is deprecated; use the array-returning getLocalColumns() instead.
 	 */
 	public function getLocalColumnNames()
 	{
@@ -289,7 +343,7 @@ class ForeignKey extends XMLElement
 
 	/**
 	 * Return a comma delimited string of foreign column names
-	 * @deprecated because Column::makeList() is deprecated; use the array-returning getForeignColumns() and DDLBuilder->getColumnList() instead instead.
+	 * @deprecated because Column::makeList() is deprecated; use the array-returning getForeignColumns() instead.
 	 */
 	public function getForeignColumnNames()
 	{
@@ -303,6 +357,38 @@ class ForeignKey extends XMLElement
 	public function getLocalColumns()
 	{
 		return $this->localColumns;
+	}
+
+	/**
+	 * Return an array of local column objects.
+	 * @return     array Column[]
+	 */
+	public function getLocalColumnObjects()
+	{
+		$columns = array();
+		$localTable = $this->getTable();
+		foreach ($this->localColumns as $columnName) {
+			$columns []= $localTable->getColumn($columnName);
+		}
+		return $columns;
+	}
+
+	/**
+	 * Return a local column name.
+	 * @return     string
+	 */
+	public function getLocalColumnName($index = 0)
+	{
+		return $this->localColumns[$index];
+	}
+
+	/**
+	 * Return a local column object.
+	 * @return     Column
+	 */
+	public function getLocalColumn($index = 0)
+	{
+		return $this->getTable()->getColumn($this->getLocalColumnName($index));
 	}
 
 	/**
@@ -376,8 +462,8 @@ class ForeignKey extends XMLElement
 	}
 
 	/**
-	 * Return an array of foreign column objects.
-	 * @return     array Column[]
+	 * Return an array of foreign column names.
+	 * @return     array string[]
 	 */
 	public function getForeignColumns()
 	{
@@ -385,7 +471,39 @@ class ForeignKey extends XMLElement
 	}
 
 	/**
-	 * Whether this foreign key uses a required column, or a list or required columns.
+	 * Return an array of foreign column objects.
+	 * @return     array Column[]
+	 */
+	public function getForeignColumnObjects()
+	{
+		$columns = array();
+		$foreignTable = $this->getForeignTable();
+		foreach ($this->foreignColumns as $columnName) {
+			$columns []= $foreignTable->getColumn($columnName);
+		}
+		return $columns;
+	}
+
+	/**
+	 * Return a foreign column name.
+	 * @return     string
+	 */
+	public function getForeignColumnName($index = 0)
+	{
+		return $this->foreignColumns[$index];
+	}
+
+	/**
+	 * Return a foreign column object.
+	 * @return     Column
+	 */
+	public function getForeignColumn($index = 0)
+	{
+		return $this->getForeignTable()->getColumn($this->getForeignColumnName($index));
+	}
+	
+	/**
+	 * Whether this foreign key uses a required column, or a list of required columns.
 	 *
 	 * @return     boolean
 	 */
@@ -423,6 +541,15 @@ class ForeignKey extends XMLElement
 			!array_diff($foreignPKCols, $foreignCols));
 	}
 
+  /**
+   * Whether this foreign key relies on more than one column binding
+   *
+   * @return Boolean
+   */
+  public function isComposite()
+  {
+    return count($this->getLocalColumns()) > 1;
+  }
 
 	/**
 	 * Whether this foreign key is also the primary key of the local table.
@@ -442,6 +569,24 @@ class ForeignKey extends XMLElement
 
 		return ((count($localPKCols) === count($localCols)) &&
 			!array_diff($localPKCols, $localCols));
+	}
+
+	/**
+	 * Set whether this foreign key should have its creation sql generated.
+	 * @param     boolean $v Value to assign to skipSql.
+	 */
+	public function setSkipSql($v)
+	{
+		$this->skipSql = $v;
+	}
+	
+	/**
+	 * Skip generating sql for this foreign key.
+	 * @return    boolean Value of skipSql.
+	 */
+	public function isSkipSql()
+	{
+		return $this->skipSql;
 	}
 
 	/**
@@ -499,7 +644,8 @@ class ForeignKey extends XMLElement
 
 		$fkNode = $node->appendChild($doc->createElement('foreign-key'));
 
-		$fkNode->setAttribute('foreignTable', $this->getForeignTableName());
+		$fkNode->setAttribute('foreignTable', $this->getForeignTableCommonName());
+		$fkNode->setAttribute('foreignSchema', $this->getForeignSchemaName());
 		$fkNode->setAttribute('name', $this->getName());
 
 		if ($this->getPhpName()) {

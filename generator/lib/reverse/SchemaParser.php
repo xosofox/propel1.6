@@ -12,7 +12,7 @@
  * Interface for reverse engineering schema parsers.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 1612 $
+ * @version    $Revision: 1982 $
  * @package    propel.generator.reverse
  */
 interface SchemaParser
@@ -59,5 +59,5 @@ interface SchemaParser
 	 *
 	 * @return     int number of generated tables
 	 */
-	public function parse(Database $database, PDOTask $task = null);
+	public function parse(Database $database, Task $task = null);
 }
