@@ -22,7 +22,7 @@
  * @method     ModelCriteria innerJoin($relation) Adds a INNER JOIN clause to the query
  *
  * @author     François Zaninotto
- * @version    $Revision: 2200 $
+ * @version    $Revision: 2245 $
  * @package    propel.runtime.query
  */
 class ModelCriteria extends Criteria
@@ -950,7 +950,37 @@ class ModelCriteria extends Criteria
 	{
 		return $this->primaryCriteria;
 	}
-
+	
+	/**
+	 * Adds a Criteria as subQuery in the From Clause.
+	 * 
+	 * @see Criteria::addSelectQuery()
+	 *
+	 * @param     Criteria $subQueryCriteria Criteria to build the subquery from  
+	 * @param     string   $alias            alias for the subQuery
+	 * @param     boolean  $addAliasAndSelectColumns Set to false if you want to manually add the aliased select columns 
+	 *
+	 * @return ModelCriteria The current object, for fluid interface
+	 */
+	public function addSelectQuery(Criteria $subQueryCriteria, $alias = null, $addAliasAndSelectColumns = true)
+	{
+		if (!$subQueryCriteria->hasSelectClause()) {
+			$subQueryCriteria->addSelfSelectColumns();
+		}
+		parent::addSelectQuery($subQueryCriteria, $alias);
+		if ($addAliasAndSelectColumns) {
+			// give this query-model same alias as subquery
+			if (null === $alias) {
+				end($this->selectQueries);
+				$alias = key($this->selectQueries);
+			}
+			$this->setModelAlias($alias, true);
+			// so we can add selfSelectColumns
+			$this->addSelfSelectColumns();
+		}
+		return $this;
+	}
+	
 	/**
 	 * Adds the select columns for a the current table
 	 *
@@ -1846,12 +1876,12 @@ class ModelCriteria extends Criteria
 		} elseif (isset($this->joins[$class])) {
 			// column of a relations's model
 			$tableMap = $this->joins[$class]->getTableMap();
+		} elseif ($this->hasSelectQuery($class)) {
+			return $this->getColumnFromSubQuery($class, $phpName, $failSilently);
+		} elseif ($failSilently) {
+			return array(null, null);
 		} else {
-			if ($failSilently) {
-				return array(null, null);
-			} else {
-				throw new PropelException('Unknown model or alias ' . $class);
-			}
+			throw new PropelException(sprintf('Unknown model or alias "%"', $class));
 		}
 
 		if ($tableMap->hasColumnByPhpName($phpName)) {
@@ -1866,15 +1896,36 @@ class ModelCriteria extends Criteria
 		} elseif (isset($this->asColumns[$phpName])) {
 			// aliased column
 			return array(null, $phpName);
+		} elseif ($failSilently) {
+			return array(null, null);
 		} else {
-			if ($failSilently) {
-				return array(null, null);
-			} else {
-				throw new PropelException('Unknown column ' . $phpName . ' on model or alias ' . $class);
-			}
+			throw new PropelException(sprintf('Unknown column "%s" on model or alias "%s"', $phpName, $class));
 		}
 	}
 
+	/**
+	 * Special case for subquery columns
+	 *
+	 * @return     array List($columnMap, $realColumnName)
+	 */
+	protected function getColumnFromSubQuery($class, $phpName, $failSilently = true)
+	{
+		$subQueryCriteria = $this->getSelectQuery($class);
+		$tableMap = $subQueryCriteria->getTableMap();
+		if ($tableMap->hasColumnByPhpName($phpName)) {
+			$column = $tableMap->getColumnByPhpName($phpName);
+			$realColumnName = $class . '.' . $column->getName();
+			return array($column, $realColumnName);
+		} elseif (isset($subQueryCriteria->asColumns[$phpName])) {
+			// aliased column
+			return array(null, $class . '.' . $phpName);
+		} elseif ($failSilently) {
+			return array(null, null);
+		} else {
+			throw new PropelException(sprintf('Unknown column "%s" in the subQuery with alias "%s"', $phpName, $class));
+		}
+	}
+	
 	/**
 	 * Return a fully qualified column name corresponding to a simple column phpName
 	 * Uses model alias if it exists
