@@ -13,7 +13,7 @@
  * Modifier for the object builder.
  *
  * @author     François Zaninotto
- * @version    $Revision: 2133 $
+ * @version    $Revision: 2251 $
  * @package    propel.generator.behavior.i18n
  */
 class I18nBehaviorObjectBuilderModifier
@@ -43,6 +43,13 @@ class I18nBehaviorObjectBuilderModifier
 		return $this->behavior->renderTemplate('objectAttributes', array(
 			'defaultLocale'   => $this->behavior->getDefaultLocale(),
 			'objectClassname' => $builder->getNewStubObjectBuilder($this->behavior->getI18nTable())->getClassname(),
+		));
+	}
+	
+	public function objectClearReferences($builder)
+	{
+		return $this->behavior->renderTemplate('objectClearReferences', array(
+			'defaultLocale'   => $this->behavior->getDefaultLocale(),
 		));
 	}
 

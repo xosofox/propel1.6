@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../../../../../runtime/lib/Propel.php';
  * Tests for I18nBehavior class object modifier
  *
  * @author     François Zaninotto
- * @version    $Revision: 2134 $
+ * @version    $Revision: 2251 $
  * @package    generator.behavior.i18n
  */
 class I18nBehaviorObjectBuilderModifierTest extends PHPUnit_Framework_TestCase
@@ -271,6 +271,19 @@ EOF;
 			->filterById($o->getId())
 			->count();
 		$this->assertEquals(2, $count);
+	}
+	
+	public function testClearRemovesExistingTranlsations()
+	{
+		$o = new I18nBehaviorTest1();
+		$translation1 = new I18nBehaviorTest1I18n();
+		$translation1->setBar('baz');
+		$translation1->setLocale('fr_FR');
+		$o->addI18nBehaviorTest1I18n($translation1);
+		$o->clear();
+		$this->assertEquals('en_EN', $o->getLocale());
+		$t1 = $o->getTranslation('fr_FR');
+		$this->assertEquals('', $t1->getBar());
 	}
 
 }

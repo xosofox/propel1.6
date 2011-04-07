@@ -1,7 +1,7 @@
 <?php
 
 /*
- *	$Id: TableTest.php 2202 2011-02-21 21:30:57Z francois $
+ *	$Id: TableTest.php 2254 2011-04-06 12:32:26Z francois $
  * This file is part of the Propel package.
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -19,7 +19,7 @@ require_once dirname(__FILE__) . '/../../../tools/helpers/DummyPlatforms.php';
  * Tests for Table model class
  *
  * @author     Martin Poeschl (mpoeschl@marmot.at)
- * @version    $Revision: 2202 $
+ * @version    $Revision: 2254 $
  * @package    generator.model
  */
 class TableTest extends PHPUnit_Framework_TestCase
@@ -263,6 +263,47 @@ EOF;
 		$this->assertNotNull($title1Column->getValidator());
 		$table1->removeValidatorForColumn('title1');
 		$this->assertNull($title1Column->getValidator());
+	}
+	
+	public function testGetNamespaceAddsDatabaseNamespace()
+	{
+		$db = new Database();
+		$db->setNamespace('Foo');
+		
+		$t1 = new Table('t1');
+		$db->addTable($t1);
+		$this->assertEquals('Foo', $t1->getNamespace());
+		
+		$t2 = new Table('t2');
+		$t2->setNamespace('Bar');
+		$db->addTable($t2);
+		$this->assertEquals('Foo\\Bar', $t2->getNamespace());
+	}
+
+	public function testGetNamespaceSkipsDatabaseNamespaceWhenNamespaceIsAbsolute()
+	{
+		$db = new Database();
+		$db->setNamespace('Foo');
+		
+		$t1 = new Table('t1');
+		$t1->setNamespace('\\Bar');
+		$db->addTable($t1);
+		$this->assertEquals('Bar', $t1->getNamespace());
+	}
+
+	public function testGetNamespaceCanIgnoreDatabaseNamespace()
+	{
+		$db = new Database();
+		$db->setNamespace('Foo');
+		
+		$t1 = new Table('t1');
+		$db->addTable($t1);
+		$this->assertEquals('', $t1->getNamespace(false));
+		
+		$t2 = new Table('t2');
+		$t2->setNamespace('Bar');
+		$db->addTable($t2);
+		$this->assertEquals('Bar', $t2->getNamespace(false));
 	}
 
 }

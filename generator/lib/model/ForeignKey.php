@@ -17,7 +17,7 @@ require_once dirname(__FILE__) . '/XMLElement.php';
  * @author     Fedor <fedor.karpelevitch@home.com>
  * @author     Daniel Rall <dlr@finemaltcoding.com>
  * @author     Ulf Hermann <ulfhermann@kulturserver.de>
- * @version    $Revision: 2194 $
+ * @version    $Revision: 2260 $
  * @package    propel.generator.model
  */
 class ForeignKey extends XMLElement
@@ -645,7 +645,9 @@ class ForeignKey extends XMLElement
 		$fkNode = $node->appendChild($doc->createElement('foreign-key'));
 
 		$fkNode->setAttribute('foreignTable', $this->getForeignTableCommonName());
-		$fkNode->setAttribute('foreignSchema', $this->getForeignSchemaName());
+		if ($schema = $this->getForeignSchemaName()) {
+			$fkNode->setAttribute('foreignSchema', $schema);
+		}
 		$fkNode->setAttribute('name', $this->getName());
 
 		if ($this->getPhpName()) {

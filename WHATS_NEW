@@ -679,6 +679,46 @@ $books = BookQuery::create()
 
 '''Warning''': Only generated Query classes (through generated `filterByXXX()` methods) and `ModelCriteria` (through `where()`, `orWhere()`, and `condition()`) allow conditions on `ENUM`, `OBJECT`, and `ARRAY` columns. `Criteria` alone (through `add()`, `addAnd()`, and `addOr()`) does not support conditions on such columns.
 
+== Table Subqueries (a.k.a "Inline Views") ==
+
+SQL supports table subqueries to solve complex cases that a single query can't solve, or to optimize slow queries with several joins. For instance, to find the latest book written by every author in SQL, it usually takes a query like the following:
+
+{{{
+#!sql
+SELECT book.ID, book.TITLE, book.AUTHOR_ID, book.PRICE, book.CREATED_AT, MAX(book.CREATED_AT) 
+FROM book 
+GROUP BY book.AUTHOR_ID
+}}}
+
+Now if you want only the cheapest latest books with a single query, you need a subquery:
+{{{
+#!sql
+SELECT lastBook.ID, lastBook.TITLE, lastBook.AUTHOR_ID, lastBook.PRICE, lastBook.CREATED_AT 
+FROM
+(
+  SELECT book.ID, book.TITLE, book.AUTHOR_ID, book.PRICE, book.CREATED_AT, MAX(book.CREATED_AT) 
+  FROM book 
+  GROUP BY book.AUTHOR_ID
+) AS lastBook 
+WHERE lastBook.PRICE < 20
+}}}
+
+To achieve this query using Propel, call the new `addSelectQuery()` method to use a first query as the source for the SELECT part of a second query:
+
+{{{
+$latestBooks = BookQuery::create()
+  ->withColumn('MAX(Book.CreatedAt)')
+  ->groupBy('Book.AuthorId');
+$latestCheapBooks = BookQuery::create()
+  ->useSelectQuery($latestBooks, 'lastBook')
+  ->where('lastBook.Price < ?', 20)
+  ->find();
+}}}
+
+You could use two queries or a WHERE IN to achieve the same result, but it wouldn't be as effective.
+
+Inline views are used a lot in Oracle, so this addition should make Propel even more Oracle-friendly.
+
 == Better Pluralizer ==
 
 Have you ever considered Propel as a lame English speaker? Due to its poor pluralizer, Propel used to be unable to create proper getter methods in one-to-many relationships when dealing with foreign objects named 'Child', 'Category', 'Wife', or 'Sheep'.
@@ -709,6 +749,7 @@ There wasn't any one-stop place to read about the abilities of the generated Act
  * The generated `toArray()` method for !ActiveRecord objects can now include collections, without risk of infinite recursion. Therefore `$author->toArray()` also outputs the collection of Books by the author. The dumping abilities introduced in 1.6 take advantage of this feature.
  * `PropelModelPager` now behaves more like a `PropelCollection`, thanks to the addition of `isFirst()`, `isLast()`, `isOdd()`, and `isEven()` methods. That means that it's easier to replace a `find()` by a `paginate()` as termination method for a query if there is a complex formatting.
  * Despite all that you may have read about PHP 5.3's garbage collector, memory leaks still exist on some particular circular references. Propel generates a `clearAllReferences()` method on all !ActiveRecord classes, and this method has been improved in Propel 1.6 to handle the existing leaks. Use it when you iterate on large collections of objects, or where the memory is limited.
- * For each database, Behaviors are now added to a priority queue. This allows to execute some behaviors before others, and to solve conflicts between behaviors. See [wiki:Documentation/1.6/Writing-Behavior#SpecifyingaPriorityForBehaviorExecution Hpw to Write a Behavior].
- * Behaviors can now modify existing methods even if no hook is called in the builders, thanks to a new service class called `PropelPHPParser`. This class can remove a method, replace a method by another one, or add a new method before or after an existing one. Check the API reference for details.
+ * For each database, Behaviors are now added to a priority queue. This allows to execute some behaviors before others, and to solve conflicts between behaviors. See [wiki:Documentation/1.6/Writing-Behavior#SpecifyingaPriorityForBehaviorExecution How to Write a Behavior].
+ * Behaviors can now modify existing methods even if no hook is called in the builders, thanks to a new service class called `PropelPHPParser`. This class can remove a method, replace a method by another one, or add a new method before or after an existing one. See the [wiki:Documentation/1.6/Behaviors#ReplacingorRemovingExistingMethods Behavior Documentation] for details.
  * Propel now supports tablespace definition on Oracle tables using custom `<vendor>` tags. See the [wiki:Documentation/1.6/Schema#AddingVendorInfo Schema reference] for details.
+ * The built-in [wiki:Documentation/1.6/Runtime-Introspection Runtime Introspection] classes are now a little smarter: `TableMap` objects have the knowledge of the primary string column.

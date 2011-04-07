@@ -16,7 +16,7 @@ require_once dirname(__FILE__) . '/I18nBehaviorPeerBuilderModifier.php';
  * Allows translation of text columns through transparent one-to-many relationship
  *
  * @author    Francois Zaninotto
- * @version		$Revision: 2202 $
+ * @version		$Revision: 2254 $
  * @package		propel.generator.behavior.i18n
  */
 class I18nBehavior extends Behavior
@@ -74,7 +74,7 @@ class I18nBehavior extends Behavior
 				'phpName'   => $this->getI18nTablePhpName(),
 				'package'   => $table->getPackage(),
 				'schema'    => $table->getSchema(),
-				'namespace' => $table->getNamespace(),
+				'namespace' => $table->getNamespace(false),
 			));
 			// every behavior adding a table should re-execute database behaviors
 			foreach ($database->getBehaviors() as $behavior) {

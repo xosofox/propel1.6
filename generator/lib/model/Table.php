@@ -29,7 +29,7 @@ require_once dirname(__FILE__) . '/Behavior.php';
  * @author     John McNally <jmcnally@collab.net> (Torque)
  * @author     Daniel Rall <dlr@collab.net> (Torque)
  * @author     Byron Foster <byron_foster@yahoo.com> (Torque)
- * @version    $Revision: 2236 $
+ * @version    $Revision: 2254 $
  * @package    propel.generator.model
  */
 class Table extends ScopedElement implements IDMethod
@@ -1254,10 +1254,16 @@ class Table extends ScopedElement implements IDMethod
 
 	/**
 	 * Get the value of the namespace.
-	 * @return     value of namespace.
+	 *
+	 * @param     boolean $includeDatabaseNamespace Whether to complement the table namespace with the database namespace.
+	 *                                              Defaults to True.
+	 * @return    value of namespace.
 	 */
-	public function getNamespace()
+	public function getNamespace($includeDatabaseNamespace = true)
 	{
+		if (!$includeDatabaseNamespace) {
+			return $this->namespace;
+		}
 		if ($this->namespace && strpos($this->namespace, '\\') === 0) {
 			// absolute table namespace
 			return substr($this->namespace, 1);

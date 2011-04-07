@@ -14,7 +14,7 @@ require_once dirname(__FILE__) . '/../../../tools/helpers/bookstore/BookstoreTes
  * Test class for TableMap.
  *
  * @author     François Zaninotto
- * @version    $Id: ColumnMapTest.php 2168 2011-01-20 15:07:57Z francois $
+ * @version    $Id: ColumnMapTest.php 2253 2011-04-06 11:43:39Z francois $
  * @package    runtime.map
  */
 class ColumnMapTest extends BookstoreTestBase
@@ -134,4 +134,21 @@ class ColumnMapTest extends BookstoreTestBase
     $this->assertEquals('BAR_BAZ', ColumnMap::normalizeName('foo.bar_baz'), 'normalizeColumnName() can do all the above at the same time');
   }
 
+  public function testIsPrimaryString()
+  {
+    $bookTable = BookPeer::getTableMap();
+    $idColumn = $bookTable->getColumn('ID');
+    $titleColumn = $bookTable->getColumn('TITLE');
+    $isbnColumn = $bookTable->getColumn('ISBN');
+
+    $this->assertFalse($idColumn->isPrimaryString(), 'isPrimaryString() returns false by default.');
+    $this->assertTrue($titleColumn->isPrimaryString(), 'isPrimaryString() returns true if set in schema.');
+    $this->assertFalse($isbnColumn->isPrimaryString(), 'isPrimaryString() returns false if not set in schema.');
+
+    $titleColumn->setPrimaryString(false);
+    $this->assertFalse($titleColumn->isPrimaryString(), 'isPrimaryString() returns false if unset.');
+
+    $titleColumn->setPrimaryString(true);
+    $this->assertTrue($titleColumn->isPrimaryString(), 'isPrimaryString() returns true if set.');
+  }
 }

@@ -20,7 +20,7 @@
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     John D. McNally <jmcnally@collab.net> (Torque)
- * @version    $Revision: 2090 $
+ * @version    $Revision: 2253 $
  * @package    propel.runtime.map
  */
 class ColumnMap
@@ -61,6 +61,9 @@ class ColumnMap
 
   // The allowed values for an ENUM column
   protected $valueSet = array();
+
+  // Is this a primaryString column?
+  protected $isPkString = false;
 
   /**
    * Constructor.
@@ -482,6 +485,26 @@ class ColumnMap
     return $name;
   }
   
+  /**
+   * Set this column to be a primaryString column.
+   *
+   * @param      boolean $pkString
+   */
+  public function setPrimaryString($pkString)
+  {
+    $this->isPkString = (bool) $pkString;
+  }
+
+  /**
+   * Is this column a primaryString column?
+   *
+   * @return     boolean True, if this column is the primaryString column.
+   */
+  public function isPrimaryString()
+  {
+    return $this->isPkString;
+  }
+
   // deprecated methods
   
   /**
