@@ -22,7 +22,7 @@
  * @method     ModelCriteria innerJoin($relation) Adds a INNER JOIN clause to the query
  *
  * @author     François Zaninotto
- * @version    $Revision: 2245 $
+ * @version    $Revision: 2262 $
  * @package    propel.runtime.query
  */
 class ModelCriteria extends Criteria
@@ -1881,7 +1881,7 @@ class ModelCriteria extends Criteria
 		} elseif ($failSilently) {
 			return array(null, null);
 		} else {
-			throw new PropelException(sprintf('Unknown model or alias "%"', $class));
+			throw new PropelException(sprintf('Unknown model or alias "%s"', $class));
 		}
 
 		if ($tableMap->hasColumnByPhpName($phpName)) {
