@@ -1,7 +1,7 @@
 <?php
 
 /*
- *	$Id: TableTest.php 2254 2011-04-06 12:32:26Z francois $
+ *	$Id: TableTest.php 2268 2011-04-17 21:34:48Z francois $
  * This file is part of the Propel package.
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -19,7 +19,7 @@ require_once dirname(__FILE__) . '/../../../tools/helpers/DummyPlatforms.php';
  * Tests for Table model class
  *
  * @author     Martin Poeschl (mpoeschl@marmot.at)
- * @version    $Revision: 2254 $
+ * @version    $Revision: 2268 $
  * @package    generator.model
  */
 class TableTest extends PHPUnit_Framework_TestCase
@@ -265,45 +265,31 @@ EOF;
 		$this->assertNull($title1Column->getValidator());
 	}
 	
-	public function testGetNamespaceAddsDatabaseNamespace()
+	public function testTableNamespaceAcrossDatabase()
 	{
-		$db = new Database();
-		$db->setNamespace('Foo');
-		
-		$t1 = new Table('t1');
-		$db->addTable($t1);
-		$this->assertEquals('Foo', $t1->getNamespace());
-		
-		$t2 = new Table('t2');
-		$t2->setNamespace('Bar');
-		$db->addTable($t2);
-		$this->assertEquals('Foo\\Bar', $t2->getNamespace());
+		$schema1 = <<<EOF
+<database name="DB1" namespace="NS1">
+  <table name="table1">
+    <column name="id" primaryKey="true" />
+    <column name="title1" type="VARCHAR" />
+  </table>
+</database>
+EOF;
+		$xmlToAppData = new XmlToAppData(new DefaultPlatform());
+		$appData1 = $xmlToAppData->parseString($schema1);
+		$schema2 = <<<EOF
+<database name="DB1" namespace="NS2">
+  <table name="table2">
+    <column name="id" primaryKey="true" />
+    <column name="title1" type="VARCHAR" />
+  </table>
+</database>
+EOF;
+		$xmlToAppData = new XmlToAppData(new DefaultPlatform());
+		$appData2 = $xmlToAppData->parseString($schema2);
+		$appData1->joinAppDatas(array($appData2));
+		$this->assertEquals('NS1', $appData1->getDatabase('DB1')->getTable('table1')->getNamespace());
+		$this->assertEquals('NS2', $appData1->getDatabase('DB1')->getTable('table2')->getNamespace());
 	}
-
-	public function testGetNamespaceSkipsDatabaseNamespaceWhenNamespaceIsAbsolute()
-	{
-		$db = new Database();
-		$db->setNamespace('Foo');
-		
-		$t1 = new Table('t1');
-		$t1->setNamespace('\\Bar');
-		$db->addTable($t1);
-		$this->assertEquals('Bar', $t1->getNamespace());
-	}
-
-	public function testGetNamespaceCanIgnoreDatabaseNamespace()
-	{
-		$db = new Database();
-		$db->setNamespace('Foo');
-		
-		$t1 = new Table('t1');
-		$db->addTable($t1);
-		$this->assertEquals('', $t1->getNamespace(false));
-		
-		$t2 = new Table('t2');
-		$t2->setNamespace('Bar');
-		$db->addTable($t2);
-		$this->assertEquals('Bar', $t2->getNamespace(false));
-	}
-
+	
 }

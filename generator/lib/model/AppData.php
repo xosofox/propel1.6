@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/Database.php';
  * @author     Leon Messerschmidt <leon@opticode.co.za> (Torque)
  * @author     John McNally <jmcnally@collab.net> (Torque)
  * @author     Daniel Rall <dlr@finemaltcoding.com> (Torque)
- * @version    $Revision: 2215 $
+ * @version    $Revision: 2268 $
  * @package    propel.generator.model
  */
 class AppData
@@ -256,6 +256,9 @@ class AppData
 				$addDbName = $addDb->getName();
 				if ($this->hasDatabase($addDbName)) {
 					$db = $this->getDatabase($addDbName, false);
+					// temporarily reset database namespace to avoid double namespace decoration (see ticket #1355)
+					$namespace = $db->getNamespace();
+					$db->setNamespace(null);
 					// join tables
 					foreach ($addDb->getTables() as $addTable) {
 						if ($db->getTable($addTable->getName())) {
@@ -269,6 +272,8 @@ class AppData
 							$db->addBehavior($addBehavior);
 						}
 					}
+					// restore the database namespace
+					$db->setNamespace($namespace);
 				} else {
 					$this->addDatabase($addDb);
 				}
