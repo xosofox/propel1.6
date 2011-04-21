@@ -12,7 +12,7 @@
  * This is used to connect to a MSSQL database.
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
- * @version    $Revision: 2190 $
+ * @version    $Revision: 2273 $
  * @package    propel.runtime.adapter
  */
 class DBMSSQL extends DBAdapter
@@ -128,16 +128,17 @@ class DBMSSQL extends DBAdapter
 
 		$selectText = 'SELECT ';
 
-		if (preg_match('/\Aselect(\s+)distinct/i', $sql)) {
-			$selectText .= 'DISTINCT ';
-		}
-
 		preg_match('/\Aselect(.*)from(.*)/si', $sql, $selectSegment);
 		if(count($selectSegment) == 3) {
 			$selectStatement = trim($selectSegment[1]);
 			$fromStatement = trim($selectSegment[2]);
 		} else {
 			throw new Exception('DBMSSQL::applyLimit() could not locate the select statement at the start of the query.');
+		}
+
+		if (preg_match('/\Aselect(\s+)distinct/i', $sql)) {
+			$selectText .= 'DISTINCT ';
+			$selectStatement = str_ireplace('distinct ', '', $selectStatement);
 		}
 
 		// if we're starting at offset 0 then theres no need to simulate limit,
