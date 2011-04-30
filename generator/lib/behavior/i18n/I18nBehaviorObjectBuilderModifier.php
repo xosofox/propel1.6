@@ -13,7 +13,7 @@
  * Modifier for the object builder.
  *
  * @author     François Zaninotto
- * @version    $Revision: 2251 $
+ * @version    $Revision: 2275 $
  * @package    propel.generator.behavior.i18n
  */
 class I18nBehaviorObjectBuilderModifier
@@ -113,6 +113,7 @@ class I18nBehaviorObjectBuilderModifier
 			'i18nListVariable' => $this->builder->getRefFKCollVarName($fk),
 			'localeColumnName' => $this->behavior->getLocaleColumn()->getPhpName(),
 			'i18nQueryName'    => $this->builder->getNewStubQueryBuilder($i18nTable)->getClassname(),
+			'i18nSetterMethod' => $this->builder->getRefFKPhpNameAffix($fk, $plural = false),
 		));
 	}
 
