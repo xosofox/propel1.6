@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/DefaultPlatform.php';
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2242 $
+ * @version    $Revision: 2281 $
  * @package    propel.generator.platform
  */
 class MysqlPlatform extends DefaultPlatform
@@ -44,6 +44,16 @@ class MysqlPlatform extends DefaultPlatform
 		$this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, "TINYINT"));
 	}
 
+	public function setGeneratorConfig(GeneratorConfig $generatorConfig)
+	{
+		if ($defaultTableEngine = $generatorConfig->getBuildProperty('mysqlTableType')) {
+			$this->defaultTableEngine = $defaultTableEngine;
+		}
+		if ($tableEngineKeyword = $generatorConfig->getBuildProperty('mysqlTableEngineKeyword')) {
+			$this->tableEngineKeyword = $tableEngineKeyword;
+		}
+	}
+	
 	/**
 	 * Setter for the tableEngineKeyword property
 	 *
@@ -81,11 +91,6 @@ class MysqlPlatform extends DefaultPlatform
 	 */
 	function getDefaultTableEngine()
 	{
-		if (class_exists('DataModelBuilder', false)) {
-			if ($defaultTableEngine = $this->getBuildProperty('mysqlTableType')) {
-				return $defaultTableEngine;
-			}
-		}
 		return $this->defaultTableEngine;
 	}
 

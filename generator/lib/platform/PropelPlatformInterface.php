@@ -13,7 +13,7 @@
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2090 $
+ * @version    $Revision: 2281 $
  * @package    propel.generator.platform
  */
 interface PropelPlatformInterface
@@ -52,13 +52,6 @@ interface PropelPlatformInterface
 	 * @param      GeneratorConfig $config
 	 */
 	public function setGeneratorConfig(GeneratorConfig $config);
-
-	/**
-	 * Gets the GeneratorConfig object.
-	 *
-	 * @return     GeneratorConfig
-	 */
-	public function getGeneratorConfig();
 
 	/**
 	 * Returns the short name of the database type that this platform represents.

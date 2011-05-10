@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../model/PropelTypes.php';
  * Default implementation for the Platform interface.
  *
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2243 $
+ * @version    $Revision: 2281 $
  * @package    propel.generator.platform
  */
 class DefaultPlatform implements PropelPlatformInterface
@@ -30,13 +30,6 @@ class DefaultPlatform implements PropelPlatformInterface
 	 * @var        array
 	 */
 	protected $schemaDomainMap;
-
-	/**
-	 * GeneratorConfig object holding build properties.
-	 *
-	 * @var        GeneratorConfig
-	 */
-	protected $generatorConfig;
 
 	/**
 	 * @var        PDO Database connection.
@@ -83,17 +76,7 @@ class DefaultPlatform implements PropelPlatformInterface
 	 */
 	public function setGeneratorConfig(GeneratorConfig $config)
 	{
-		$this->generatorConfig = $config;
-	}
-
-	/**
-	 * Gets the GeneratorConfig option.
-	 *
-	 * @return     GeneratorConfig
-	 */
-	public function getGeneratorConfig()
-	{
-		return $this->generatorConfig;
+		// do nothing by default
 	}
 
 	/**
