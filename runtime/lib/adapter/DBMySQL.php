@@ -15,7 +15,7 @@
  * @author     Jon S. Stevens <jon@clearink.com> (Torque)
  * @author     Brett McLaughlin <bmclaugh@algx.net> (Torque)
  * @author     Daniel Rall <dlr@finemaltcoding.com> (Torque)
- * @version    $Revision: 2090 $
+ * @version    $Revision: 2287 $
  * @package    propel.runtime.adapter
  */
 class DBMySQL extends DBAdapter 
@@ -154,7 +154,7 @@ class DBMySQL extends DBAdapter
 	/**
 	 * @see        DBAdapter::bindValue()
 	 */
-	public function bindValue(PDOStatement $stmt, $parameter, $value, ColumnMap $cMap)
+	public function bindValue(PDOStatement $stmt, $parameter, $value, ColumnMap $cMap, $position = null)
 	{
 		$pdoType = $cMap->getPdoType();
 		// FIXME - This is a temporary hack to get around apparent bugs w/ PDO+MYSQL

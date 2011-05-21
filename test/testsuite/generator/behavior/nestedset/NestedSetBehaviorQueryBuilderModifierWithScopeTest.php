@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/../../../../tools/helpers/bookstore/behavior/
  * Tests for NestedSetBehaviorQueryBuilderModifier class with scope enabled
  *
  * @author		François Zaninotto
- * @version		$Revision: 1834 $
+ * @version		$Revision: 2288 $
  * @package		generator.behavior.nestedset
  */
 class NestedSetBehaviorQueryBuilderModifierWithScopeTest extends BookstoreNestedSetTestBase 
@@ -247,7 +247,30 @@ class NestedSetBehaviorQueryBuilderModifierWithScopeTest extends BookstoreNested
 		$this->assertEquals($t1, Table10Query::create()->findRoot(1), 'findRoot() returns a tree root');
 		$this->assertEquals($t8, Table10Query::create()->findRoot(2), 'findRoot() returns a tree root');
 	}
-	
+
+	public function testFindRoots()
+	{
+		list($t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9, $t10) = $this->initTreeWithScope();
+		/* Tree used for tests
+		 Scope 1
+		 t1
+		 |  \
+		 t2 t3
+		    |  \
+		    t4 t5
+		       |  \
+		       t6 t7
+		 Scope 2
+		 t8
+		 | \
+		 t9 t10
+		*/
+		$objs = Table10Query::create()
+			->findRoots();
+		$coll = $this->buildCollection(array($t1, $t8));
+		$this->assertEquals($coll, $objs, 'findRoots() returns all root objects');
+	}
+
 	public function testFindTree()
 	{
 		list($t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9, $t10) = $this->initTreeWithScope();
