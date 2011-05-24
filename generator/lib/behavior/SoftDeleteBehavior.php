@@ -14,7 +14,7 @@
  * And an additional condition for every read query to only consider rows with no deletion date
  *
  * @author     François Zaninotto
- * @version    $Revision: 2169 $
+ * @version    $Revision: 2294 $
  * @package    propel.generator.behavior
  */
 class SoftDeleteBehavior extends Behavior
@@ -52,14 +52,20 @@ class SoftDeleteBehavior extends Behavior
 	
 	public function addObjectForceDelete(&$script)
 	{
+		$peerClassName = $this->getTable()->getPhpName() . 'Peer';
 		$script .= "
 /**
  * Bypass the soft_delete behavior and force a hard delete of the current object
  */
 public function forceDelete(PropelPDO \$con = null)
 {
-	{$this->getTable()->getPhpName()}Peer::disableSoftDelete();
+	if(\$isSoftDeleteEnabled = {$peerClassName}::isSoftDeleteEnabled()) {
+		{$peerClassName}::disableSoftDelete();
+	}
 	\$this->delete(\$con);
+	if (\$isSoftDeleteEnabled) {
+		{$peerClassName}::enableSoftDelete();
+	}
 }
 ";
 	}
@@ -346,32 +352,38 @@ public static function isSoftDeleteEnabled()
  */
 public static function doSoftDelete(\$values, PropelPDO \$con = null)
 {
+	if (\$con === null) {
+		\$con = Propel::getConnection({$this->getTable()->getPhpName()}Peer::DATABASE_NAME, Propel::CONNECTION_WRITE);
+	}
 	if (\$values instanceof Criteria) {
 		// rename for clarity
-		\$criteria = clone \$values;
+		\$selectCriteria = clone \$values;
 	} elseif (\$values instanceof {$this->getTable()->getPhpName()}) {
 		// create criteria based on pk values
-		\$criteria = \$values->buildPkeyCriteria();
+		\$selectCriteria = \$values->buildPkeyCriteria();
 	} else {
 		// it must be the primary key
-		\$criteria = new Criteria(self::DATABASE_NAME);";
+		\$selectCriteria = new Criteria(self::DATABASE_NAME);";
 		$pks = $this->getTable()->getPrimaryKey();
 		if (count($pks)>1) {
 			$i = 0;
 			foreach ($pks as $col) {
 				$script .= "
-		\$criteria->add({$col->getConstantName()}, \$values[$i], Criteria::EQUAL);";
+		\$selectCriteria->add({$col->getConstantName()}, \$values[$i], Criteria::EQUAL);";
 				$i++;
 			}
 		} else  {
 			$col = $pks[0];
 			$script .= "
-		\$criteria->add({$col->getConstantName()}, (array) \$values, Criteria::IN);";
+		\$selectCriteria->add({$col->getConstantName()}, (array) \$values, Criteria::IN);";
 		}
 		$script .= "
 	}
-	\$criteria->add({$this->getColumnForParameter('deleted_column')->getConstantName()}, time());
-	return {$this->getTable()->getPhpName()}Peer::doUpdate(\$criteria, \$con);
+	// Set the correct dbName
+	\$selectCriteria->setDbName({$this->getTable()->getPhpName()}Peer::DATABASE_NAME);
+	\$updateCriteria = new Criteria(self::DATABASE_NAME);
+	\$updateCriteria->add({$this->getColumnForParameter('deleted_column')->getConstantName()}, time());
+	return {$this->builder->getBasePeerClassname()}::doUpdate(\$selectCriteria, \$updateCriteria, \$con);
 }
 ";
 	}

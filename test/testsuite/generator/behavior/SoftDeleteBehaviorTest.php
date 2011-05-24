@@ -1,7 +1,7 @@
 <?php
 
 /*
- *	$Id: SoftDeleteBehaviorTest.php 2168 2011-01-20 15:07:57Z francois $
+ *	$Id: SoftDeleteBehaviorTest.php 2293 2011-05-23 19:40:33Z francois $
  * This file is part of the Propel package.
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/../../../tools/helpers/bookstore/BookstoreTes
  * Tests for SoftDeleteBehavior class
  *
  * @author		 François Zaninotto
- * @version		$Revision: 2168 $
+ * @version		$Revision: 2293 $
  * @package		generator.behavior
  */
 class SoftDeleteBehaviorTest extends BookstoreTestBase 
@@ -218,6 +218,37 @@ class SoftDeleteBehaviorTest extends BookstoreTestBase
 		$this->assertTrue($t->isDeleted(), 'forceDelete() actually deletes a row');
 		Table4Peer::disableSoftDelete();
 		$this->assertEquals(0, Table4Peer::doCount(new Criteria), 'forced deleted rows are not present in the database');
+	}
+	
+	public function testForceDeleteDoesNotDisableSoftDelete()
+	{
+		$t1 = new Table4();
+		$t1->save();
+		$t2 = new Table4();
+		$t2->save();
+		$t1->forceDelete();
+		$t2->delete();
+		$this->assertTrue($t1->isDeleted(), 'forceDelete() actually deletes a row');
+		$this->assertFalse($t2->isDeleted(), 'forceDelete() does not affect further delete() calls');
+		Table4Peer::disableSoftDelete();
+		$this->assertEquals(1, Table4Peer::doCount(new Criteria), 'forced deleted rows are not present in the database');
+	}
+
+	public function testForceDeleteReEnablesSoftDelete()
+	{
+		$t = new Table4();
+		$t->save();
+		$t->forceDelete();
+		$this->assertTrue(Table4Peer::isSoftDeleteEnabled(), 'forceDelete() reenables soft delete');
+	}
+
+	public function testForceDeleteDoesNotReEnableSoftDeleteIfDisabled()
+	{
+		Table4Peer::disableSoftDelete();
+		$t = new Table4();
+		$t->save();
+		$t->forceDelete();
+		$this->assertFalse(Table4Peer::isSoftDeleteEnabled(), 'forceDelete() does not reenable soft delete if previously disabled');
 	}
 	
 	public function testQueryIncludeDeleted()
