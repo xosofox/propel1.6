@@ -25,7 +25,7 @@ require_once dirname(__FILE__) . '/ColumnDefaultValue.php';
  * @author     Daniel Rall <dlr@finemaltcoding.com> (Torque)
  * @author     Byron Foster <byron_foster@yahoo.com> (Torque)
  * @author     Bernd Goldschmidt <bgoldschmidt@rapidsoft.de>
- * @version    $Revision: 2209 $
+ * @version    $Revision: 2307 $
  * @package    propel.generator.model
  */
 class Column extends XMLElement
@@ -792,7 +792,7 @@ class Column extends XMLElement
 
 	public function hasReferrer(ForeignKey $fk)
 	{
-		return $this->hasReferrers() && in_array($fk, $this->referrers);
+		return $this->hasReferrers() && in_array($fk, $this->referrers, true);
 	}
 	
 	public function clearReferrers()

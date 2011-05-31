@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/../../../tools/helpers/bookstore/BookstoreDat
  * Test class for SubQueryTest.
  *
  * @author     Francois Zaninotto
- * @version    $Id: SubQueryTest.php 2246 2011-04-05 17:52:56Z francois $
+ * @version    $Id: SubQueryTest.php 2301 2011-05-30 10:28:40Z francois $
  * @package    runtime.query
  */
 class SubQueryTest extends BookstoreTestBase
@@ -206,4 +206,25 @@ class SubQueryTest extends BookstoreTestBase
 		$this->assertCriteriaTranslation($c, $sql, $params, 'addSubQueryCriteriaInFrom() combines two queries succesfully');
 	}
 
+	public function testSubQueryWithSelectColumns()
+	{
+		$subCriteria = new BookQuery();
+		
+		$c = new TestableBookQuery();
+		$c->addSelectQuery($subCriteria, 'alias1', false);
+		$c->select(array('alias1.Id'));
+		$c->configureSelectColumns();
+		
+		$sql = "SELECT alias1.ID AS \"alias1.Id\" FROM (SELECT book.ID, book.TITLE, book.ISBN, book.PRICE, book.PUBLISHER_ID, book.AUTHOR_ID FROM `book`) AS alias1";
+		$params = array();
+		$this->assertCriteriaTranslation($c, $sql, $params, 'addSelectQuery() forges a unique alias and adds select columns by default');
+	}
+}
+
+class TestableBookQuery extends BookQuery
+{
+	public function configureSelectColumns()
+	{
+		return parent::configureSelectColumns();
+	}
 }
