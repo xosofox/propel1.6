@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../model/PropelTypes.php';
  * Default implementation for the Platform interface.
  *
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2281 $
+ * @version    $Revision: 2311 $
  * @package    propel.generator.platform
  */
 class DefaultPlatform implements PropelPlatformInterface
@@ -627,22 +627,25 @@ ALTER TABLE %s DROP CONSTRAINT %s;
 	public function getModifyDatabaseDDL(PropelDatabaseDiff $databaseDiff)
 	{
 		$ret = $this->getBeginDDL();
-
+		
 		foreach ($databaseDiff->getRemovedTables() as $table) {
 			$ret .= $this->getDropTableDDL($table);
 		}
-
+		
 		foreach ($databaseDiff->getRenamedTables() as $fromTableName => $toTableName) {
 			$ret .= $this->getRenameTableDDL($fromTableName, $toTableName);
 		}
-
-		foreach ($databaseDiff->getModifiedTables() as $tableDiff) {
-			$ret .= $this->getModifyTableDDL($tableDiff);
-		}
-
+		
 		foreach ($databaseDiff->getAddedTables() as $table) {
 			$ret .= $this->getAddTableDDL($table);
 			$ret .= $this->getAddIndicesDDL($table);
+		}
+		
+		foreach ($databaseDiff->getModifiedTables() as $tableDiff) {
+			$ret .= $this->getModifyTableDDL($tableDiff);
+		}
+		
+		foreach ($databaseDiff->getAddedTables() as $table) {
 			$ret .= $this->getAddForeignKeysDDL($table);
 		}
 		
