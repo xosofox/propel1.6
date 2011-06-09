@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/DefaultPlatform.php';
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2281 $
+ * @version    $Revision: 2318 $
  * @package    propel.generator.platform
  */
 class MysqlPlatform extends DefaultPlatform
@@ -207,18 +207,38 @@ CREATE TABLE %s
 		$tableVI = $table->getVendorInfoForType('mysql');
 		$vi = $dbVI->getMergedVendorInfo($tableVI);
 		$tableOptions = array();
+		// List of supported table options
+		// see http://dev.mysql.com/doc/refman/5.5/en/create-table.html
 		$supportedOptions = array(
+			'AutoIncrement'   => 'AUTO_INCREMENT',
+			'AvgRowLength'    => 'AVG_ROW_LENGTH',
 			'Charset'         => 'CHARACTER SET',
-			'Collate'         => 'COLLATE',
 			'Checksum'        => 'CHECKSUM',
-			'Pack_Keys'       => 'PACK_KEYS',
+			'Collate'         => 'COLLATE',
+			'Connection'      => 'CONNECTION',
+			'DataDirectory'   => 'DATA DIRECTORY',
 			'Delay_key_write' => 'DELAY_KEY_WRITE',
+			'DelayKeyWrite'   => 'DELAY_KEY_WRITE',
+			'IndexDirectory'  => 'INDEX DIRECTORY',
+			'InsertMethod'    => 'INSERT_METHOD',
+			'KeyBlockSize'    => 'KEY_BLOCK_SIZE',
+			'MaxRows'         => 'MAX_ROWS',
+			'MinRows'         => 'MIN_ROWS',
+			'Pack_Keys'       => 'PACK_KEYS',
+			'PackKeys'        => 'PACK_KEYS',
+			'RowFormat'       => 'ROW_FORMAT',
+			'Union'           => 'UNION',
 		);
 		foreach ($supportedOptions as $name => $sqlName) {
 			if ($vi->hasParameter($name)) {
 				$tableOptions []= sprintf('%s=%s', 
 					$sqlName, 
 					$this->quote($vi->getParameter($name))
+				);
+			} elseif ($vi->hasParameter($sqlName)) {
+				$tableOptions []= sprintf('%s=%s', 
+					$sqlName, 
+					$this->quote($vi->getParameter($sqlName))
 				);
 			}
 		}
@@ -258,7 +278,7 @@ DROP TABLE IF EXISTS " . $this->quoteIdentifier($table->getName()) . ";
 		}
 
 		$ddl = array($this->quoteIdentifier($col->getName()));
-		if ($this->hasSize($sqlType)) {
+		if ($this->hasSize($sqlType) && $col->isDefaultSqlType($this)) {
 			$ddl []= $sqlType . $domain->printSize();
 		} else {
 			$ddl []= $sqlType;

@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../model/PropelTypes.php';
  * Default implementation for the Platform interface.
  *
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2311 $
+ * @version    $Revision: 2318 $
  * @package    propel.generator.platform
  */
 class DefaultPlatform implements PropelPlatformInterface
@@ -315,7 +315,7 @@ DROP TABLE " . $this->quoteIdentifier($table->getName()) . ";
 		
 		$ddl = array($this->quoteIdentifier($col->getName()));
 		$sqlType = $domain->getSqlType();
-		if ($this->hasSize($sqlType)) {
+		if ($this->hasSize($sqlType) && $col->isDefaultSqlType($this)) {
 			$ddl []= $sqlType . $domain->printSize();
 		} else {
 			$ddl []= $sqlType;

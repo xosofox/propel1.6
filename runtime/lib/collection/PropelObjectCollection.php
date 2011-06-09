@@ -244,12 +244,12 @@ class PropelObjectCollection extends PropelCollection
 		if ($this->isEmpty()) {
 			// save a useless query and return an empty collection
 			$coll = new PropelObjectCollection();
-			$coll->setModel($relationMap->getRightTable()->getPhpName());
+			$coll->setModel($relationMap->getRightTable()->getClassname());
 			return $coll;
 		}
 		$symRelationMap = $relationMap->getSymmetricalRelation();
 
-		$query = PropelQuery::from($relationMap->getRightTable()->getPhpName());
+		$query = PropelQuery::from($relationMap->getRightTable()->getClassname());
 		if (null !== $criteria) {
 			$query->mergeWith($criteria);
 		}
@@ -259,9 +259,14 @@ class PropelObjectCollection extends PropelCollection
 			->$filterMethod($this)
 			->find($con);
 		if ($relationMap->getType() == RelationMap::ONE_TO_MANY) {
+			// initialize the embedded collections of the main objects
+			$relationName = $relationMap->getName();
+			foreach ($this as $mainObj) {
+				$mainObj->initRelation($relationName);
+			}
 			// associate the related objects to the main objects
 			$getMethod = 'get' . $symRelationMap->getName();
-			$addMethod = 'add' . $relationMap->getName();
+			$addMethod = 'add' . $relationName;
 			foreach ($relatedObjects as $object) {
 				$mainObj = $object->$getMethod();  // instance pool is used here to avoid a query
 				$mainObj->$addMethod($object);

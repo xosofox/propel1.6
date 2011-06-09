@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../../../../generator/lib/behavior/AutoAddPkB
  * Tests for package handling.
  *
  * @author     <a href="mailto:mpoeschl@marmot.at>Martin Poeschl</a>
- * @version    $Revision: 2221 $
+ * @version    $Revision: 2318 $
  * @package    generator.model
  */
 class ColumnTest extends PHPUnit_Framework_TestCase
@@ -184,6 +184,21 @@ EOF;
 		$title2Validator = $title2Column->getValidator();
 		$this->assertInstanceOf('Validator', $title2Validator);
 		$this->assertEquals(2, count($title2Validator->getRules()));
+	}
+	
+	public function testHasPlatform()
+	{
+		$column = new Column();
+		$this->assertFalse($column->hasPlatform());
+		$table = new Table();
+		$table->addColumn($column);
+		$this->assertFalse($column->hasPlatform());
+		$database = new Database();
+		$database->addTable($table);
+		$this->assertFalse($column->hasPlatform());
+		$platform = new DefaultPlatform();
+		$database->setPlatform($platform);
+		$this->assertTrue($column->hasPlatform());
 	}
 
 }

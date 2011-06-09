@@ -16,7 +16,7 @@ require_once dirname(__FILE__) . '/DefaultPlatform.php';
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
  * @author     Niklas Närhinen <niklas@narhinen.net>
- * @version    $Revision: 2238 $
+ * @version    $Revision: 2318 $
  * @package    propel.generator.platform
  */
 class PgsqlPlatform extends DefaultPlatform
@@ -310,7 +310,7 @@ DROP TABLE %s CASCADE;
 		if ($col->isAutoIncrement() && $table && $table->getIdMethodParameters() == null) {
 			$sqlType = $col->getType() === PropelTypes::BIGINT ? 'bigserial' : 'serial';
 		}
-		if ($this->hasSize($sqlType)) {
+		if ($this->hasSize($sqlType) && $col->isDefaultSqlType($this)) {
 			$ddl []= $sqlType . $domain->printSize();
 		} else {
 			$ddl []= $sqlType;
