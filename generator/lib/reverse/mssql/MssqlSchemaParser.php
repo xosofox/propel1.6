@@ -14,7 +14,7 @@ require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
  * Microsoft SQL Server database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2189 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.reverse.mssql
  */
 class MssqlSchemaParser extends BaseSchemaParser
@@ -87,6 +87,7 @@ class MssqlSchemaParser extends BaseSchemaParser
 				continue;
 			}
 			$table = new Table($name);
+			$table->setIdMethod($database->getDefaultIdMethod());
 			$database->addTable($table);
 			$tables[] = $table;
 		}

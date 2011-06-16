@@ -14,7 +14,7 @@ require_once dirname(__FILE__) . '/DefaultPlatform.php';
  * SQLite PropelPlatformInterface implementation.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2168 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.platform
  */
 class SqlitePlatform extends DefaultPlatform
@@ -146,4 +146,13 @@ class SqlitePlatform extends DefaultPlatform
 	{
 		return $this->isIdentifierQuotingEnabled ? '[' . $text . ']' : $text;
 	}
+	
+	/**
+	 * @see        Platform::supportsMigrations()
+	 */
+	public function supportsMigrations()
+	{
+		return false;
+	}
+
 }

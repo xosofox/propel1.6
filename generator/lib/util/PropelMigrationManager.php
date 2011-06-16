@@ -16,7 +16,7 @@ require_once dirname(__FILE__) . '/PropelSQLParser.php';
  * Service class for preparing and executing migrations
  *
  * @author     François Zaninotto
- * @version    $Revision: 2031 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.util
  */
 class PropelMigrationManager
@@ -137,8 +137,8 @@ class PropelMigrationManager
 		foreach ($connections as $name => $params) {
 			$pdo = $this->getPdoConnection($name);
 			$sql = sprintf('SELECT version FROM %s', $this->getMigrationTable());
-			$stmt = $pdo->prepare($sql);
 			try {
+				$stmt = $pdo->prepare($sql);
 				$stmt->execute();
 				if ($migrationTimestamp = $stmt->fetchColumn()) {
 					$migrationTimestamps[$name] = $migrationTimestamp;

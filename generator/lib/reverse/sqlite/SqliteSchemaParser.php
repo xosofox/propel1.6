@@ -14,7 +14,7 @@ require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
  * SQLite database schema parser.
  *
  * @author     Hans Lellelid <hans@xmpl.org>
- * @version    $Revision: 2008 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.reverse.sqlite
  */
 class SqliteSchemaParser extends BaseSchemaParser
@@ -85,6 +85,7 @@ class SqliteSchemaParser extends BaseSchemaParser
 				continue;
 			}
 			$table = new Table($name);
+			$table->setIdMethod($database->getDefaultIdMethod());
 			$database->addTable($table);
 			$tables[] = $table;
 		}
@@ -141,7 +142,7 @@ class SqliteSchemaParser extends BaseSchemaParser
 			$default = $row['dflt_value'];
 
 
-			$propelType = $this->getMappedPropelType($type);
+			$propelType = $this->getMappedPropelType(strtolower($type));
 			if (!$propelType) {
 				$propelType = Column::DEFAULT_TYPE;
 				$this->warn("Column [" . $table->getName() . "." . $name. "] has a column type (".$type.") that Propel does not support.");

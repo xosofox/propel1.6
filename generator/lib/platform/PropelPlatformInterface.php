@@ -13,7 +13,7 @@
  *
  * @author     Hans Lellelid <hans@xmpl.org> (Propel)
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2281 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.platform
  */
 interface PropelPlatformInterface
@@ -172,6 +172,12 @@ interface PropelPlatformInterface
 	 * @return boolean
 	 */
 	public function supportsSchemas();
+
+	/**
+	 * Whether RDBMS supports migrations.
+	 * @return boolean
+	 */
+	public function supportsMigrations();
 
 	/**
 	 * Returns the boolean value for the RDBMS.

@@ -18,7 +18,7 @@ require_once dirname(__FILE__) . '/../model/PropelTypes.php';
  * Default implementation for the Platform interface.
  *
  * @author     Martin Poeschl <mpoeschl@marmot.at> (Torque)
- * @version    $Revision: 2318 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.platform
  */
 class DefaultPlatform implements PropelPlatformInterface
@@ -1066,6 +1066,14 @@ ALTER TABLE %s ADD
 	public function supportsSchemas()
 	{
 		return false;
+	}
+	
+	/**
+	 * @see        Platform::supportsMigrations()
+	 */
+	public function supportsMigrations()
+	{
+		return true;
 	}
 
 	/**

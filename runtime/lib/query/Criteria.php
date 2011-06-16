@@ -21,7 +21,7 @@
  * @author     Eric Dobbs <eric@dobbse.net> (Torque)
  * @author     Henning P. Schmiedehausen <hps@intermeta.de> (Torque)
  * @author     Sam Joseph <sam@neurogrid.com> (Torque)
- * @version    $Revision: 2246 $
+ * @version    $Revision: 2324 $
  * @package    propel.runtime.query
  */
 class Criteria implements IteratorAggregate
@@ -1280,7 +1280,7 @@ class Criteria implements IteratorAggregate
 	/**
 	 * Add order by column name, explicitly specifying ascending.
 	 *
-	 * @param      name The name of the column to order by.
+	 * @param      string $name The name of the column to order by.
 	 * @return     A modified Criteria object.
 	 */
 	public function addAscendingOrderByColumn($name)

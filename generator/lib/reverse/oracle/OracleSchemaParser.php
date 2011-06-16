@@ -15,7 +15,7 @@ require_once dirname(__FILE__) . '/../BaseSchemaParser.php';
  *
  * @author     Hans Lellelid <hans@xmpl.org>
  * @author     Guillermo Gutierrez <ggutierrez@dailycosas.net> (Adaptation)
- * @version    $Revision: 2168 $
+ * @version    $Revision: 2322 $
  * @package    propel.generator.reverse.oracle
  */
 class OracleSchemaParser extends BaseSchemaParser
@@ -86,6 +86,7 @@ class OracleSchemaParser extends BaseSchemaParser
 				continue;
 			}
 			$table = new Table($row['OBJECT_NAME']);
+			$table->setIdMethod($database->getDefaultIdMethod());
 			if ($task) $task->log("Adding table '" . $table->getName() . "'", Project::MSG_VERBOSE);
 			$database->addTable($table);
 			// Add columns, primary keys and indexes.
