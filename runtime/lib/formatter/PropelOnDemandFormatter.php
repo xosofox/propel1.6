@@ -14,7 +14,7 @@
  * This formatter consumes less memory than the PropelObjectFormatter, but doesn't use Instance Pool
  *
  * @author     Francois Zaninotto
- * @version    $Revision: 2146 $
+ * @version    $Revision: 2327 $
  * @package    propel.runtime.formatter
  */
 class PropelOnDemandFormatter extends PropelObjectFormatter
@@ -73,7 +73,13 @@ class PropelOnDemandFormatter extends PropelObjectFormatter
 				$class = $modelWith->getModelName();
 			}
 			$endObject = $this->getSingleObjectFromRow($row, $class, $col);
-			$startObject = $modelWith->isPrimary() ? $obj : $hydrationChain[$modelWith->getLeftPhpName()];
+			if ($modelWith->isPrimary()) {
+				$startObject = $obj;
+			} elseif (isset($hydrationChain)) {
+				$startObject = $hydrationChain[$modelWith->getLeftPhpName()];
+			} else {
+				continue;
+			}
 			// as we may be in a left join, the endObject may be empty
 			// in which case it should not be related to the previous object
 			if (null === $endObject || $endObject->isPrimaryKeyNull()) {
