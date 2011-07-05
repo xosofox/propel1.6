@@ -19,7 +19,7 @@
  * These classes in themselves do not do any database metadata lookups.
  *
  * @author     Francois Zaninotto
- * @version    $Revision: 1728 $
+ * @version    $Revision: 2331 $
  * @package    propel.runtime.map
  */
 class RelationMap
@@ -37,6 +37,7 @@ class RelationMap
     
   protected 
     $name,
+    $pluralName,
     $type,
     $localTable,
     $foreignTable,
@@ -48,6 +49,8 @@ class RelationMap
    * Constructor.
    *
    * @param      string $name Name of the relation.
+   * @param      string $pluralName Plural Name of the relation. 
+   *                                Defaults to the Name of the relation concatenated with 's'.
    */
   public function __construct($name)
   {
@@ -62,6 +65,21 @@ class RelationMap
   public function getName()
   {
     return $this->name;
+  }
+
+  public function setPluralName($pluralName)
+  {
+    $this->pluralName = $pluralName;
+  }
+
+  /**
+   * Get the plural name of this relation.
+   *
+   * @return     string The plural name of the relation.
+   */
+  public function getPluralName()
+  {
+    return null !== $this->pluralName ? $this->pluralName : ($this->name . 's');
   }
 
   /**
